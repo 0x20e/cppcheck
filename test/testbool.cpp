@@ -243,7 +243,7 @@ private:
         ASSERT_EQUALS("", errout.str());
 
         check("void f(int x) {\n"
-              "    if ((x | 0x0f)==6)\n"
+              "    if ((x || 0x0f)==6)\n" //The or operator error has been has been corrected 
               "        a++;\n"
               "}\n"
              );

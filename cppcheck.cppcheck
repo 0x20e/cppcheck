@@ -4,7 +4,7 @@
     <builddir>out1</builddir>
     <analyze-all-vs-configs>true</analyze-all-vs-configs>
     <includedir>
-        <dir name="lib/"/>
+	<dir name="lib/"/>
         <dir name="cli/"/>
         <dir name="externals/"/>
         <dir name="gui/temp/"/>
@@ -17,7 +17,7 @@
         <dir name="test/"/>
     </paths>
     <exclude>
-        <path name="gui/temp/"/>
+	<path name="gui/temp/"/>
         <path name="test/test.cxx"/>
     </exclude>
 </project>
