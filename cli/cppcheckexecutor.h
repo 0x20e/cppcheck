@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,11 +20,15 @@
 #define CPPCHECKEXECUTOR_H
 
 #include "errorlogger.h"
+
+#include <cstdio>
 #include <ctime>
+#include <map>
 #include <set>
 #include <string>
 
 class CppCheck;
+class Library;
 class Settings;
 
 /**
@@ -65,17 +69,17 @@ public:
      *
      * @param outmsg Progress message e.g. "Checking main.cpp..."
      */
-    virtual void reportOut(const std::string &outmsg);
+    virtual void reportOut(const std::string &outmsg) override;
 
     /** xml output of errors */
-    virtual void reportErr(const ErrorLogger::ErrorMessage &msg);
+    virtual void reportErr(const ErrorLogger::ErrorMessage &msg) override;
 
-    void reportProgress(const std::string &filename, const char stage[], const std::size_t value);
+    void reportProgress(const std::string &filename, const char stage[], const std::size_t value) override;
 
     /**
      * Output information messages.
      */
-    virtual void reportInfo(const ErrorLogger::ErrorMessage &msg);
+    virtual void reportInfo(const ErrorLogger::ErrorMessage &msg) override;
 
     /**
      * Information about how many files have been checked
@@ -86,6 +90,21 @@ public:
      * @param sizetotal The total sizes of the files.
      */
     static void reportStatus(std::size_t fileindex, std::size_t filecount, std::size_t sizedone, std::size_t sizetotal);
+
+    /**
+     * @param exception_output Output file
+     */
+    static void setExceptionOutput(FILE* exception_output);
+    /**
+    * @return file name to be used for output from exception handler. Has to be either "stdout" or "stderr".
+    */
+    static FILE* getExceptionOutput();
+
+    /**
+    * Tries to load a library and prints warning/error messages
+    * @return false, if an error occurred (except unknown XML elements)
+    */
+    static bool tryLoadLibrary(Library& destination, const char* basepath, const char* filename);
 
 protected:
 
@@ -106,7 +125,37 @@ protected:
      */
     bool parseFromArgs(CppCheck *cppcheck, int argc, const char* const argv[]);
 
+    /**
+     * Helper function to supply settings. This can be used for testing.
+     * @param settings Reference to an Settings instance
+     */
+    void setSettings(const Settings &settings);
+
 private:
+
+    /**
+     * Wrapper around check_internal
+     *   - installs optional platform dependent signal handling
+     *
+     * * @param cppcheck cppcheck instance
+    * @param argc from main()
+    * @param argv from main()
+     **/
+    int check_wrapper(CppCheck& cppcheck, int argc, const char* const argv[]);
+
+    /**
+    * Starts the checking.
+    *
+    * @param cppcheck cppcheck instance
+    * @param argc from main()
+    * @param argv from main()
+    * @return EXIT_FAILURE if arguments are invalid or no input files
+    *         were found.
+    *         If errors are found and --error-exitcode is used,
+    *         given value is returned instead of default 0.
+    *         If no errors are found, 0 is returned.
+    */
+    int check_internal(CppCheck& cppcheck, int argc, const char* const argv[]);
 
     /**
      * Pointer to current settings; set while check() is running.
@@ -126,7 +175,17 @@ private:
     /**
      * Report progress time
      */
-    std::time_t time1;
+    std::time_t latestProgressOutputTime;
+
+    /**
+     * Output file name for exception handler
+     */
+    static FILE* exceptionOutput;
+
+    /**
+     * Error output
+     */
+    std::ofstream *errorOutput;
 
     /**
      * Has --errorlist been given?

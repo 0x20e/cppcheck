@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<TS version="2.0">
+<TS version="2.1">
 <context>
     <name>About</name>
     <message>
@@ -15,10 +15,6 @@
         <source>Cppcheck - A tool for static C/C++ code analysis.</source>
         <translation>Cppcheck - 정적 C/C++ 코드 분석 도구.</translation>
     </message>
-    <message utf8="true">
-        <source>Copyright © 2007-2012 Daniel Marjamäki and cppcheck team.</source>
-        <translation type="obsolete">Copyright © 2007-2012 Daniel Marjamäki and cppcheck team.</translation>
-    </message>
     <message>
         <source>This program is licensed under the terms
 of the GNU General Public License version 3</source>
@@ -29,9 +25,9 @@ of the GNU General Public License version 3</source>
         <source>Visit Cppcheck homepage at %1</source>
         <translation>Cppcheck 홈페이지(%1)를 방문해보세요</translation>
     </message>
-    <message utf8="true">
-        <source>Copyright © 2007-2013 Daniel Marjamäki and cppcheck team.</source>
-        <translation type="unfinished">Copyright © 2007-2012 Daniel Marjamäki and cppcheck team. {2007-2013 ?}</translation>
+    <message>
+        <source>Copyright © 2007-2018 Cppcheck team.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -117,30 +113,229 @@ Kate로 파일을 열고, 해당 행으로 이동하는 예제:
     </message>
 </context>
 <context>
-    <name>LogView</name>
+    <name>LibraryAddFunctionDialog</name>
     <message>
-        <source>Checking Log</source>
-        <translation>로그 확인</translation>
+        <source>Add function</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Clear</source>
-        <translation>지우기</translation>
+        <source>Function name(s)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Save Log</source>
-        <translation>로그 저장</translation>
+        <source>Number of arguments</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>LibraryDialog</name>
+    <message>
+        <source>Library Editor</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Text files (*.txt *.log);;All files (*.*)</source>
-        <translation>텍스트 파일 (*.txt *.log);;모든 파일 (*.*)</translation>
+        <source>Open</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Functions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>noreturn</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>False</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>True</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unknown</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>return value must be used</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ignore function in leaks checking</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Arguments</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation type="unfinished">편집</translation>
+    </message>
+    <message>
+        <source>Library files (*.cfg)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open library file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sort</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Filter:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Comments</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save as</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Cppcheck</source>
-        <translation>Cppcheck</translation>
+        <translation type="unfinished">Cppcheck</translation>
+    </message>
+    <message>
+        <source>Can not open file %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Can not save file %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save the library as</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to load %1. %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>LibraryEditArgDialog</name>
+    <message>
+        <source>Edit argument</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;
+&lt;p&gt;Is bool value allowed? For instance result from comparison or from &apos;!&apos; operator.&lt;/p&gt;
+&lt;p&gt;Typically, set this if the argument is a pointer, size, etc.&lt;/p&gt;
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;pre&gt;    memcmp(x, y, i == 123);   // last argument should not have a bool value&lt;/pre&gt;
+&lt;/body&gt;&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not bool</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;
+&lt;p&gt;Is a null parameter value allowed?&lt;/p&gt;
+&lt;p&gt;Typically this should be used on any pointer parameter that does not allow null.&lt;/p&gt;
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;pre&gt;    strcpy(x,y); // neither x or y is allowed to be null.&lt;/pre&gt;
+&lt;/body&gt;&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not null</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not uninit</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>String</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Format string</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Min size of buffer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>argvalue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>mul</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>strlen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Arg</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Arg2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>and</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Valid values</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>LogView</name>
+    <message>
+        <source>Checking Log</source>
+        <translation type="vanished">로그 확인</translation>
+    </message>
+    <message>
+        <source>Clear</source>
+        <translation type="vanished">지우기</translation>
+    </message>
+    <message>
+        <source>Save Log</source>
+        <translation type="vanished">로그 저장</translation>
+    </message>
+    <message>
+        <source>Text files (*.txt *.log);;All files (*.*)</source>
+        <translation type="vanished">텍스트 파일 (*.txt *.log);;모든 파일 (*.*)</translation>
+    </message>
+    <message>
+        <source>Cppcheck</source>
+        <translation type="vanished">Cppcheck</translation>
     </message>
     <message>
         <source>Could not open file for writing: &quot;%1&quot;</source>
-        <translation>기록할 파일 열기 실패: &quot;%1&quot;</translation>
+        <translation type="vanished">기록할 파일 열기 실패: &quot;%1&quot;</translation>
     </message>
 </context>
 <context>
@@ -167,7 +362,7 @@ Kate로 파일을 열고, 해당 행으로 이동하는 예제:
     </message>
     <message>
         <source>&amp;Check</source>
-        <translation>검사(&amp;C)</translation>
+        <translation type="obsolete">검사(&amp;C)</translation>
     </message>
     <message>
         <source>&amp;Edit</source>
@@ -203,7 +398,7 @@ Kate로 파일을 열고, 해당 행으로 이동하는 예제:
     </message>
     <message>
         <source>Check files</source>
-        <translation>파일 검사</translation>
+        <translation type="obsolete">파일 검사</translation>
     </message>
     <message>
         <source>Ctrl+F</source>
@@ -215,7 +410,7 @@ Kate로 파일을 열고, 해당 행으로 이동하는 예제:
     </message>
     <message>
         <source>Check directory</source>
-        <translation>디렉토리 검사</translation>
+        <translation type="obsolete">디렉토리 검사</translation>
     </message>
     <message>
         <source>Ctrl+D</source>
@@ -223,7 +418,7 @@ Kate로 파일을 열고, 해당 행으로 이동하는 예제:
     </message>
     <message>
         <source>&amp;Recheck files</source>
-        <translation>파일 재검사(&amp;R)</translation>
+        <translation type="obsolete">파일 재검사(&amp;R)</translation>
     </message>
     <message>
         <source>Ctrl+R</source>
@@ -235,7 +430,7 @@ Kate로 파일을 열고, 해당 행으로 이동하는 예제:
     </message>
     <message>
         <source>Stop checking</source>
-        <translation>검사 중지</translation>
+        <translation type="obsolete">검사 중지</translation>
     </message>
     <message>
         <source>Esc</source>
@@ -263,7 +458,7 @@ Kate로 파일을 열고, 해당 행으로 이동하는 예제:
     </message>
     <message>
         <source>Style warnings</source>
-        <translation>스타일 경고</translation>
+        <translation type="vanished">스타일 경고</translation>
     </message>
     <message>
         <source>Show style warnings</source>
@@ -271,7 +466,7 @@ Kate로 파일을 열고, 해당 행으로 이동하는 예제:
     </message>
     <message>
         <source>Errors</source>
-        <translation>에러</translation>
+        <translation type="vanished">에러</translation>
     </message>
     <message>
         <source>Show errors</source>
@@ -359,7 +554,7 @@ Kate로 파일을 열고, 해당 행으로 이동하는 예제:
     </message>
     <message>
         <source>Warnings</source>
-        <translation>경고</translation>
+        <translation type="vanished">경고</translation>
     </message>
     <message>
         <source>Show warnings</source>
@@ -367,7 +562,7 @@ Kate로 파일을 열고, 해당 행으로 이동하는 예제:
     </message>
     <message>
         <source>Performance warnings</source>
-        <translation>성능 경고</translation>
+        <translation type="vanished">성능 경고</translation>
     </message>
     <message>
         <source>Show performance warnings</source>
@@ -387,7 +582,7 @@ Kate로 파일을 열고, 해당 행으로 이동하는 예제:
     </message>
     <message>
         <source>Portability</source>
-        <translation>이식성 경고</translation>
+        <translation type="vanished">이식성 경고</translation>
     </message>
     <message>
         <source>Show portability warnings</source>
@@ -423,19 +618,19 @@ Kate로 파일을 열고, 해당 행으로 이동하는 예제:
     </message>
     <message>
         <source>Platforms</source>
-        <translation>플랫폼</translation>
+        <translation type="vanished">플랫폼</translation>
     </message>
     <message>
         <source>C++11</source>
-        <translation>C++11</translation>
+        <translation type="vanished">C++11</translation>
     </message>
     <message>
         <source>C99</source>
-        <translation>C99</translation>
+        <translation type="vanished">C99</translation>
     </message>
     <message>
         <source>Posix</source>
-        <translation>Posix</translation>
+        <translation type="vanished">Posix</translation>
     </message>
     <message>
         <source>Quick Filter:</source>
@@ -451,7 +646,7 @@ Cppcheck 버전간 설정 방법 차이때문인 것으로 보입니다. 편집�
     </message>
     <message>
         <source>No suitable files found to check!</source>
-        <translation>검사할 수 있는 파일이 없습니다!</translation>
+        <translation type="obsolete">검사할 수 있는 파일이 없습니다!</translation>
     </message>
     <message>
         <source>You must close the project file before selecting new files or directories!</source>
@@ -459,7 +654,7 @@ Cppcheck 버전간 설정 방법 차이때문인 것으로 보입니다. 편집�
     </message>
     <message>
         <source>Select directory to check</source>
-        <translation>검사할 디렉토리 선택</translation>
+        <translation type="obsolete">검사할 디렉토리 선택</translation>
     </message>
     <message>
         <source>Found project file: %1
@@ -473,7 +668,7 @@ Do you want to load this project file instead?</source>
         <source>Found project files from the directory.
 
 Do you want to proceed checking without using any of these project files?</source>
-        <translation>디렉토리에 프로젝트 파일 존재.
+        <translation type="obsolete">디렉토리에 프로젝트 파일 존재.
 
 이 프로젝트 파일을 사용하지 않고 검사를 계속하시겠습니까?</translation>
     </message>
@@ -488,10 +683,10 @@ Do you want to proceed checking without using any of these project files?</sourc
     <message>
         <source>Checking is running.
 
-Do you want to stop the checking and exit Cppcheck?.</source>
-        <translation>검사 중.
+Do you want to stop the checking and exit Cppcheck?</source>
+        <translation type="obsolete">검사 중.
 
-검사를 중지하고 Cppcheck을 종료하시겠습니까?.</translation>
+검사를 중지하고 Cppcheck을 종료하시겠습니까?</translation>
     </message>
     <message>
         <source>License</source>
@@ -503,7 +698,7 @@ Do you want to stop the checking and exit Cppcheck?.</source>
     </message>
     <message>
         <source>XML files version 2 (*.xml);;XML files version 1 (*.xml);;Text files (*.txt);;CSV files (*.csv)</source>
-        <translation>XML 파일 버전 2 (*.xml);;XML 파일 버전 1 (*.xml);;텍스트 파일 (*.txt);;CSV 파일 (*.csv)</translation>
+        <translation type="obsolete">XML 파일 버전 2 (*.xml);;XML 파일 버전 1 (*.xml);;텍스트 파일 (*.txt);;CSV 파일 (*.csv)</translation>
     </message>
     <message>
         <source>Save the report file</source>
@@ -511,11 +706,11 @@ Do you want to stop the checking and exit Cppcheck?.</source>
     </message>
     <message>
         <source>XML files version 1 (*.xml)</source>
-        <translation>XML 파일 버전 1 (*.xml)</translation>
+        <translation type="obsolete">XML 파일 버전 1 (*.xml)</translation>
     </message>
     <message>
         <source>XML files version 2 (*.xml)</source>
-        <translation>XML 파일 버전 2 (*.xml)</translation>
+        <translation type="obsolete">XML 파일 버전 2 (*.xml)</translation>
     </message>
     <message>
         <source>Text files (*.txt)</source>
@@ -578,84 +773,14 @@ Do you want to remove the file from the recently used projects -list?</source>
 최근 프로젝트 목록에서 파일을 제거하시겠습니까?</translation>
     </message>
     <message>
-        <source>Dutch</source>
-        <translation>네덜란드어</translation>
-    </message>
-    <message>
-        <source>English</source>
-        <translation>영어</translation>
-    </message>
-    <message>
-        <source>Finnish</source>
-        <translation>핀란드어</translation>
-    </message>
-    <message>
-        <source>French</source>
-        <translation>프랑스어</translation>
-    </message>
-    <message>
-        <source>German</source>
-        <translation>독일어</translation>
-    </message>
-    <message>
-        <source>Japanese</source>
-        <translation>일본어</translation>
-    </message>
-    <message>
-        <source>Korean</source>
-        <translation>한국어</translation>
-    </message>
-    <message>
-        <source>Russian</source>
-        <translation>러시아어</translation>
-    </message>
-    <message>
-        <source>Serbian</source>
-        <translation>세르비아어</translation>
-    </message>
-    <message>
-        <source>Spanish</source>
-        <translation>스페인어</translation>
-    </message>
-    <message>
-        <source>Swedish</source>
-        <translation>스웨덴어</translation>
-    </message>
-    <message>
         <source>Current results will be cleared.
 
 Opening a new XML file will clear current results.Do you want to proceed?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Italian</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Show S&amp;cratchpad...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Chinese (Simplified)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Select files to check</source>
-        <translation type="unfinished">검사할 파일 선택</translation>
-    </message>
-    <message>
-        <source>Cppcheck GUI.
-
-Syntax:
-    cppcheck-gui [OPTIONS] [files or paths]
-
-Options:
-    -h, --help     Print this help
-    -p &lt;file&gt;      Open given project file and start checking it
-    -l &lt;file&gt;      Open given results xml file
-    -d &lt;directory&gt; Specify the directory that was checked to generate the results xml specified with -l
-    -v, --version  Show program version</source>
-        <translation type="unfinished"></translation>
+        <translation type="obsolete">검사할 파일 선택</translation>
     </message>
     <message>
         <source>Cppcheck GUI - Command line parameters</source>
@@ -666,20 +791,318 @@ Options:
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>C standard</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>C11</source>
-        <translation type="unfinished">C11</translation>
+        <translation type="obsolete">C11</translation>
     </message>
     <message>
         <source>C89</source>
-        <translation type="unfinished">C89</translation>
+        <translation type="obsolete">C89</translation>
     </message>
     <message>
         <source>C++03</source>
-        <translation type="unfinished">C++03</translation>
+        <translation type="obsolete">C++03</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>File not found</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bad XML</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Missing attribute</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bad attribute value</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to load the selected library &apos;%1&apos;.
+%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unsupported format</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The library &apos;%1&apos; contains unknown elements:
+%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Duplicate platform type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Platform type redefined</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Print...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Print the Current Report</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Print Pre&amp;view...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open a Print Preview Dialog for the Current Results</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open library editor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unknown element</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unknown issue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select configuration</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cppcheck GUI.
+
+Syntax:
+    cppcheck-gui [OPTIONS] [files or paths]
+
+Options:
+    -h, --help              Print this help
+    -p &lt;file&gt;               Open given project file and start checking it
+    -l &lt;file&gt;               Open given results xml file
+    -d &lt;directory&gt;          Specify the directory that was checked to generate the results xml specified with -l
+    -v, --version           Show program version
+    --data-dir=&lt;directory&gt;  This option is for installation scripts so they can configure the directory where
+                            datafiles are located (translations, cfg). The GUI is not started when this option
+                            is used.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to load %1. Your Cppcheck installation is broken. You can use --data-dir=&lt;directory&gt; at the command line to specify where this file is located. Please note that --data-dir is supposed to be used by installation scripts and therefore the GUI does not start when it is used, all that happens is that the setting is configured.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Build dir &apos;%1&apos; does not exist, create it?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Analyze files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Analyze directory</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Reanalyze modified files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stop analysis</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>XML files (*.xml);;Text files (*.txt);;CSV files (*.csv)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No suitable files found to analyze!</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select files to analyze</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select directory to analyze</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select the configuration that will be analyzed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Found project files from the directory.
+
+Do you want to proceed analysis without using any of these project files?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Analyzer is running.
+
+Do you want to stop the analysis and exit Cppcheck?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A&amp;nalyze</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;C standard</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reanal&amp;yze all files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Style war&amp;nings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>E&amp;rrors</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sh&amp;ow Scratchpad...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Warnings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Per&amp;formance warnings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Information</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Portability</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show Cppcheck results</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clang</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show Clang results</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>P&amp;latforms</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>C++&amp;11</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>C&amp;99</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Posix</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>C&amp;11</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;C89</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;C++03</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Library Editor...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Auto-detect language</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Enforce C++</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>E&amp;nforce C</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>C++14</source>
+        <translation type="unfinished">C++14</translation>
+    </message>
+    <message>
+        <source>Failed to import &apos;%1&apos;, analysis is stopped</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Project files (*.cppcheck)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reanalyze and check library</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Check configuration (defines, includes)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>C/C++ Source</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Compile database</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Visual Studio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Borland C++ Builder 6</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>NewSuppressionDialog</name>
+    <message>
+        <source>New suppression</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Error ID</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>File name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Line number</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Symbol name</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -706,22 +1129,26 @@ Options:
     </message>
     <message>
         <source>Built-in</source>
-        <translation>내장 방식</translation>
+        <translation type="obsolete">내장 방식</translation>
+    </message>
+    <message>
+        <source>Native</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
     <name>Project</name>
     <message>
         <source>Cppcheck</source>
-        <translation>Cppcheck</translation>
+        <translation type="vanished">Cppcheck</translation>
     </message>
     <message>
         <source>Could not read the project file.</source>
-        <translation>프로젝트 파일을 읽을 수 없습니다.</translation>
+        <translation type="vanished">프로젝트 파일을 읽을 수 없습니다.</translation>
     </message>
     <message>
         <source>Could not write the project file.</source>
-        <translation>프로젝트 파일에 쓸 수 없습니다.</translation>
+        <translation type="vanished">프로젝트 파일에 쓸 수 없습니다.</translation>
     </message>
 </context>
 <context>
@@ -732,7 +1159,7 @@ Options:
     </message>
     <message>
         <source>Project</source>
-        <translation>프로젝트</translation>
+        <translation type="vanished">프로젝트</translation>
     </message>
     <message>
         <source>Defines:</source>
@@ -740,7 +1167,7 @@ Options:
     </message>
     <message>
         <source>Root:</source>
-        <translation>Root:</translation>
+        <translation type="obsolete">Root:</translation>
     </message>
     <message>
         <source>Paths:</source>
@@ -760,11 +1187,11 @@ Options:
     </message>
     <message>
         <source>Includes</source>
-        <translation>Includes</translation>
+        <translation type="obsolete">Includes</translation>
     </message>
     <message>
         <source>Include directories:</source>
-        <translation>Include 디렉토리:</translation>
+        <translation type="obsolete">Include 디렉토리:</translation>
     </message>
     <message>
         <source>Up</source>
@@ -776,7 +1203,131 @@ Options:
     </message>
     <message>
         <source>Exclude</source>
-        <translation>Exclude</translation>
+        <translation type="vanished">Exclude</translation>
+    </message>
+    <message>
+        <source>Suppressions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Note: Put your own custom .cfg files in the same folder as the project file. You should see them above.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Include Paths:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paths and Defines</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;You have a choice:&lt;/p&gt;&lt;p&gt; * Analyze all Debug and Release configurations&lt;/p&gt;&lt;p&gt; * Only analyze the first matching Debug configuration&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Analyze all Visual Studio configurations</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Root path:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Warning tags (separated by semicolon)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cppcheck build dir (whole program analysis, incremental analysis, statistics, etc)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Libraries</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Addons</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Y2038</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Thread safety</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Coding standards</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cert</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clang analyzer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clang-tidy</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Browse...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Defines must be separated by a semicolon. Example: DEF1;DEF2=5;DEF3=int</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Checking</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Platform</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Warning options</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exclude paths</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Addons and tools</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>MISRA C 2012</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Misra rule texts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Copy/paste the text from Appendix A &amp;quot;Summary of guidelines&amp;quot; from the MISRA C 2012 pdf to a text file.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>External tools</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import Project (Visual studio / compile database/ Borland C++ Builder 6)</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -796,6 +1347,42 @@ Options:
     <message>
         <source>Select directory to ignore</source>
         <translation>무시할 디렉토리 선택</translation>
+    </message>
+    <message>
+        <source>Select Cppcheck build dir</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import Project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clang-tidy (not found)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>(no rule texts file)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select MISRA rule texts file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Misra rule texts file (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Visual Studio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Compile database</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Borland C++ Builder 6</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -831,6 +1418,33 @@ Options:
         <source>Failed to load translation for language %1 from file %2</source>
         <translation>파일(%2)로부터 언어(%1) 불러오기 실패</translation>
     </message>
+    <message>
+        <source>line %1: Unhandled element %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> (Not found)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>QPlatformTheme</name>
+    <message>
+        <source>OK</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished">닫기</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ResultsTree</name>
@@ -856,7 +1470,7 @@ Options:
     </message>
     <message>
         <source>[Inconclusive]</source>
-        <translation>[불확실]</translation>
+        <translation type="vanished">[불확실]</translation>
     </message>
     <message>
         <source>style</source>
@@ -888,15 +1502,15 @@ Options:
     </message>
     <message>
         <source>Copy filename</source>
-        <translation>파일이름 복사</translation>
+        <translation type="vanished">파일이름 복사</translation>
     </message>
     <message>
         <source>Copy full path</source>
-        <translation>전체 경로 복사</translation>
+        <translation type="vanished">전체 경로 복사</translation>
     </message>
     <message>
         <source>Copy message</source>
-        <translation>메시지 복사</translation>
+        <translation type="vanished">메시지 복사</translation>
     </message>
     <message>
         <source>Hide</source>
@@ -938,7 +1552,7 @@ Please check the application path and parameters are correct.</source>
         <source>Could not find file:
 %1
 Please select the directory where file is located.</source>
-        <translation>파일 찾기 실패:
+        <translation type="vanished">파일 찾기 실패:
 %1
 파일이 위치한 디렉토리를 선택하세요.</translation>
     </message>
@@ -951,11 +1565,59 @@ Please select the directory where file is located.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Copy message id</source>
+        <source>Hide all with id</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Hide all with id</source>
+        <source>Open containing folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Inconclusive</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Recheck</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Suppress selected id(s)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tag</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No tag</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Since date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not find file:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Please select the folder &apos;%1&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select Directory &apos;%1&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Please select the directory where file is located.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copy</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1007,6 +1669,42 @@ To toggle what kind of errors are shown, open view menu.</source>
         <source>Id</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Print Report</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No errors found, nothing to print.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>First included by</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>XML format version 1 is no longer supported.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Analysis Log</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Warning Details</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear Log</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copy this Log entry</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copy complete Log</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ScratchPad</name>
@@ -1021,6 +1719,14 @@ To toggle what kind of errors are shown, open view menu.</source>
     <message>
         <source>Check</source>
         <translation type="unfinished">검사</translation>
+    </message>
+    <message>
+        <source>Copy or write some C/C++ code here:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Optionally enter a filename (mainly for automatic language detection) and click on &quot;Check&quot;:</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -1059,11 +1765,11 @@ To toggle what kind of errors are shown, open view menu.</source>
     </message>
     <message>
         <source>Paths</source>
-        <translation>경로</translation>
+        <translation type="vanished">경로</translation>
     </message>
     <message>
         <source>Include paths:</source>
-        <translation>Include 경로:</translation>
+        <translation type="vanished">Include 경로:</translation>
     </message>
     <message>
         <source>Add...</source>
@@ -1071,7 +1777,7 @@ To toggle what kind of errors are shown, open view menu.</source>
     </message>
     <message>
         <source>Edit</source>
-        <translation>편집</translation>
+        <translation type="vanished">편집</translation>
     </message>
     <message>
         <source>Remove</source>
@@ -1107,18 +1813,70 @@ To toggle what kind of errors are shown, open view menu.</source>
     </message>
     <message>
         <source>Advanced</source>
-        <translation>고급</translation>
+        <translation type="obsolete">고급</translation>
     </message>
     <message>
         <source>&amp;Show inconclusive errors</source>
-        <translation>불확실한 에러 표시(&amp;S)</translation>
+        <translation type="obsolete">불확실한 에러 표시(&amp;S)</translation>
     </message>
     <message>
         <source>S&amp;how internal warnings in log</source>
-        <translation>로그에 내부 경고 표시(&amp;H)</translation>
+        <translation type="obsolete">로그에 내부 경고 표시(&amp;H)</translation>
     </message>
     <message>
         <source>Display error Id in column &quot;Id&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Check for inconclusive errors also</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show internal warnings in log</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show statistics on check completion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Addons</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Python binary (leave this empty to use python in the PATH)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clang</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clang path (leave empty to use system PATH)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Visual Studio headers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Paths to Visual Studio headers, separated by semicolon &apos;;&apos;.&lt;/p&gt;&lt;p&gt;You can open a Visual Studio command prompt, write &amp;quot;SET INCLUDE&amp;quot;. Then copy/paste the paths.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Misra addon</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Misra rule texts file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Copy/paste the text from Appendix A &amp;quot;Summary of guidelines&amp;quot; from the MISRA C 2012 pdf to a text file.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1142,7 +1900,23 @@ To toggle what kind of errors are shown, open view menu.</source>
     </message>
     <message>
         <source>Select include directory</source>
-        <translation>Include 디렉토리 선택</translation>
+        <translation type="vanished">Include 디렉토리 선택</translation>
+    </message>
+    <message>
+        <source> [Default]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select python binary</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select clang path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select MISRA File</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -1307,6 +2081,30 @@ To toggle what kind of errors are shown, open view menu.</source>
         <source>Information messages</source>
         <translation>정보 메시지</translation>
     </message>
+    <message>
+        <source>Pdf Export</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export PDF</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>History</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>File:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>File: </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No cppcheck build dir</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ThreadResult</name>
@@ -1339,6 +2137,17 @@ The user interface language has been reset to English. Open the Preferences-dial
     <message>
         <source>inconclusive</source>
         <translation>불확실</translation>
+    </message>
+</context>
+<context>
+    <name>toFilterString</name>
+    <message>
+        <source>All supported files (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All files (%1)</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 </TS>

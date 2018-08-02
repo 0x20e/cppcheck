@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2017 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,10 +39,10 @@ ThreadResult::~ThreadResult()
 
 void ThreadResult::reportOut(const std::string &outmsg)
 {
-    emit Log(QString::fromStdString(outmsg));
+    emit log(QString::fromStdString(outmsg));
 }
 
-void ThreadResult::FileChecked(const QString &file)
+void ThreadResult::fileChecked(const QString &file)
 {
     QMutexLocker locker(&mutex);
 
@@ -53,52 +53,42 @@ void ThreadResult::FileChecked(const QString &file)
         const int value = static_cast<int>(PROGRESS_MAX * mProgress / mMaxProgress);
         const QString description = tr("%1 of %2 files checked").arg(mFilesChecked).arg(mTotalFiles);
 
-        emit Progress(value, description);
+        emit progress(value, description);
     }
 }
 
 void ThreadResult::reportErr(const ErrorLogger::ErrorMessage &msg)
 {
     QMutexLocker locker(&mutex);
-
-    QList<unsigned int> lines;
-    QStringList files;
-
-    for (std::list<ErrorLogger::ErrorMessage::FileLocation>::const_iterator tok = msg._callStack.begin();
-         tok != msg._callStack.end();
-         ++tok) {
-        files << QString((*tok).getfile(false).c_str());
-        lines << (*tok).line;
-    }
-
-    ErrorItem item;
-    item.file = QString::fromStdString(callStackToString(msg._callStack));
-    item.files = files;
-    item.errorId = QString::fromStdString(msg._id);
-    item.lines = lines;
-    item.summary = QString::fromStdString(msg.shortMessage());
-    item.message = QString::fromStdString(msg.verboseMessage());
-    item.severity = msg._severity;
-    item.inconclusive = msg._inconclusive;
-    item.file0 = QString::fromStdString(msg.file0);
-
+    const ErrorItem item(msg);
     if (msg._severity != Severity::debug)
-        emit Error(item);
+        emit error(item);
     else
-        emit DebugError(item);
+        emit debugError(item);
 }
 
-QString ThreadResult::GetNextFile()
+QString ThreadResult::getNextFile()
 {
     QMutexLocker locker(&mutex);
     if (mFiles.isEmpty()) {
-        return "";
+        return QString();
     }
 
     return mFiles.takeFirst();
 }
 
-void ThreadResult::SetFiles(const QStringList &files)
+ImportProject::FileSettings ThreadResult::getNextFileSettings()
+{
+    QMutexLocker locker(&mutex);
+    if (mFileSettings.empty()) {
+        return ImportProject::FileSettings();
+    }
+    const ImportProject::FileSettings fs = mFileSettings.front();
+    mFileSettings.pop_front();
+    return fs;
+}
+
+void ThreadResult::setFiles(const QStringList &files)
 {
     QMutexLocker locker(&mutex);
     mFiles = files;
@@ -109,22 +99,41 @@ void ThreadResult::SetFiles(const QStringList &files)
     // Determine the total size of all of the files to check, so that we can
     // show an accurate progress estimate
     quint64 sizeOfFiles = 0;
-    foreach(const QString& file, files) {
+    foreach (const QString& file, files) {
         sizeOfFiles += QFile(file).size();
     }
     mMaxProgress = sizeOfFiles;
 }
 
-void ThreadResult::ClearFiles()
+void ThreadResult::setProject(const ImportProject &prj)
 {
     QMutexLocker locker(&mutex);
     mFiles.clear();
+    mFileSettings = prj.fileSettings;
+    mProgress = 0;
+    mFilesChecked = 0;
+    mTotalFiles = prj.fileSettings.size();
+
+    // Determine the total size of all of the files to check, so that we can
+    // show an accurate progress estimate
+    quint64 sizeOfFiles = 0;
+    foreach (const ImportProject::FileSettings& fs, prj.fileSettings) {
+        sizeOfFiles += QFile(QString::fromStdString(fs.filename)).size();
+    }
+    mMaxProgress = sizeOfFiles;
+}
+
+void ThreadResult::clearFiles()
+{
+    QMutexLocker locker(&mutex);
+    mFiles.clear();
+    mFileSettings.clear();
     mFilesChecked = 0;
     mTotalFiles = 0;
 }
 
-int ThreadResult::GetFileCount() const
+int ThreadResult::getFileCount() const
 {
     QMutexLocker locker(&mutex);
-    return mFiles.size();
+    return mFiles.size() + mFileSettings.size();
 }

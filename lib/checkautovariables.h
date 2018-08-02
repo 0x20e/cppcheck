@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,40 +18,51 @@
 
 
 //---------------------------------------------------------------------------
-#ifndef CheckAutoVariablesH
-#define CheckAutoVariablesH
+#ifndef checkautovariablesH
+#define checkautovariablesH
 //---------------------------------------------------------------------------
 
-#include "config.h"
 #include "check.h"
-#include "token.h"
+#include "config.h"
+
+#include <string>
+
+class ErrorLogger;
+class Settings;
+class Token;
+class Tokenizer;
 
 /// @addtogroup Checks
+/** @brief Various small checks for automatic variables */
 /// @{
 
 
 class CPPCHECKLIB CheckAutoVariables : public Check {
 public:
     /** This constructor is used when registering the CheckClass */
-    CheckAutoVariables() : Check(myName())
-    { }
+    CheckAutoVariables() : Check(myName()) {
+    }
 
     /** This constructor is used when running checks. */
     CheckAutoVariables(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger)
-        : Check(myName(), tokenizer, settings, errorLogger)
-    { }
+        : Check(myName(), tokenizer, settings, errorLogger) {
+    }
 
     /** @brief Run checks against the normal token list */
-    void runChecks(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger) {
+    void runChecks(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger) override {
         CheckAutoVariables checkAutoVariables(tokenizer, settings, errorLogger);
+        checkAutoVariables.assignFunctionArg();
         checkAutoVariables.returnReference();
     }
 
-    void runSimplifiedChecks(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger) {
+    void runSimplifiedChecks(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger) override {
         CheckAutoVariables checkAutoVariables(tokenizer, settings, errorLogger);
         checkAutoVariables.autoVariables();
         checkAutoVariables.returnPointerToLocalArray();
     }
+
+    /** assign function argument */
+    void assignFunctionArg();
 
     /** Check auto variables */
     void autoVariables();
@@ -63,54 +74,55 @@ public:
     void returnReference();
 
 private:
-    static bool isPtrArg(const Token *tok);
-    static bool isRefPtrArg(const Token *tok);
-    static bool isNonReferenceArg(const Token *tok);
-    static bool isAutoVar(const Token *tok);
-    static bool isAutoVarArray(const Token *tok);
-
     /**
      * Returning a temporary object?
      * @param tok pointing at the "return" token
      * @return true if a temporary object is returned
      */
-    bool returnTemporary(const Token *tok) const;
+    static bool returnTemporary(const Token *tok);
 
     void errorReturnAddressToAutoVariable(const Token *tok);
+    void errorReturnAddressToAutoVariable(const Token *tok, const ValueFlow::Value *value);
+    void errorAssignAddressOfLocalArrayToGlobalPointer(const Token *pointer, const Token *array);
+    void errorAssignAddressOfLocalVariableToGlobalPointer(const Token *pointer, const Token *variable);
     void errorReturnPointerToLocalArray(const Token *tok);
     void errorAutoVariableAssignment(const Token *tok, bool inconclusive);
     void errorReturnReference(const Token *tok);
     void errorReturnTempReference(const Token *tok);
     void errorInvalidDeallocation(const Token *tok);
     void errorReturnAddressOfFunctionParameter(const Token *tok, const std::string &varname);
+    void errorUselessAssignmentArg(const Token *tok);
     void errorUselessAssignmentPtrArg(const Token *tok);
 
-    void getErrorMessages(ErrorLogger *errorLogger, const Settings *settings) const {
-        CheckAutoVariables c(0,settings,errorLogger);
-        c.errorAutoVariableAssignment(0, false);
-        c.errorReturnAddressToAutoVariable(0);
-        c.errorReturnPointerToLocalArray(0);
-        c.errorReturnReference(0);
-        c.errorReturnTempReference(0);
-        c.errorInvalidDeallocation(0);
-        c.errorReturnAddressOfFunctionParameter(0, "parameter");
-        c.errorUselessAssignmentPtrArg(0);
+    void getErrorMessages(ErrorLogger *errorLogger, const Settings *settings) const override {
+        CheckAutoVariables c(nullptr,settings,errorLogger);
+        c.errorAutoVariableAssignment(nullptr, false);
+        c.errorReturnAddressToAutoVariable(nullptr);
+        c.errorAssignAddressOfLocalArrayToGlobalPointer(nullptr, nullptr);
+        c.errorReturnPointerToLocalArray(nullptr);
+        c.errorReturnReference(nullptr);
+        c.errorReturnTempReference(nullptr);
+        c.errorInvalidDeallocation(nullptr);
+        c.errorReturnAddressOfFunctionParameter(nullptr, "parameter");
+        c.errorUselessAssignmentArg(nullptr);
+        c.errorUselessAssignmentPtrArg(nullptr);
     }
 
     static std::string myName() {
         return "Auto Variables";
     }
 
-    std::string classInfo() const {
+    std::string classInfo() const override {
         return "A pointer to a variable is only valid as long as the variable is in scope.\n"
                "Check:\n"
-               "* returning a pointer to auto or temporary variable\n"
-               "* assigning address of an variable to an effective parameter of a function\n"
-               "* returning reference to local/temporary variable\n"
-               "* returning address of function parameter\n"
-               "* useless assignment of pointer parameter\n";
+               "- returning a pointer to auto or temporary variable\n"
+               "- assigning address of an variable to an effective parameter of a function\n"
+               "- returning reference to local/temporary variable\n"
+               "- returning address of function parameter\n"
+               "- suspicious assignment of pointer argument\n"
+               "- useless assignment of function argument\n";
     }
 };
 /// @}
 //---------------------------------------------------------------------------
-#endif
+#endif // checkautovariablesH

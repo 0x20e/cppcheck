@@ -1,14 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="1">
-    <includedir>
-        <dir name="../lib"/>
-        <dir name="."/>
-        <dir name="temp"/>
-    </includedir>
-    <paths>
-        <dir name="."/>
-    </paths>
-    <ignore>
-        <path name="temp/"/>
-    </ignore>
+    <builddir>gui-cppcheck-build-dir</builddir>
+    <platform>Unspecified</platform>
+    <importproject>../../ConsoleApplication1/ConsoleApplication1.sln</importproject>
+    <analyze-all-vs-configs>true</analyze-all-vs-configs>
 </project>

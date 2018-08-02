@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,13 +22,25 @@
 #define checkuninitvarH
 //---------------------------------------------------------------------------
 
-#include "config.h"
 #include "check.h"
-#include "settings.h"
+#include "config.h"
 
-class Token;
+#include <set>
+#include <string>
+
+class ErrorLogger;
 class Scope;
+class Settings;
+class Token;
+class Tokenizer;
 class Variable;
+
+
+struct VariableValue {
+    explicit VariableValue(MathLib::bigint val = 0) : value(val), notEqual(false) {}
+    MathLib::bigint value;
+    bool notEqual;
+};
 
 /// @addtogroup Checks
 /// @{
@@ -39,69 +51,77 @@ class Variable;
 class CPPCHECKLIB CheckUninitVar : public Check {
 public:
     /** @brief This constructor is used when registering the CheckUninitVar */
-    CheckUninitVar() : Check(myName())
-    { }
+    CheckUninitVar() : Check(myName()) {
+    }
 
     /** @brief This constructor is used when running checks. */
     CheckUninitVar(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger)
-        : Check(myName(), tokenizer, settings, errorLogger)
-    { }
+        : Check(myName(), tokenizer, settings, errorLogger) {
+    }
 
     /** @brief Run checks against the simplified token list */
-    void runSimplifiedChecks(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger) {
+    void runSimplifiedChecks(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger) override {
         CheckUninitVar checkUninitVar(tokenizer, settings, errorLogger);
-        checkUninitVar.executionPaths();
         checkUninitVar.check();
+        checkUninitVar.deadPointer();
+        checkUninitVar.valueFlowUninit();
     }
 
     /** Check for uninitialized variables */
     void check();
-    void checkScope(const Scope* scope);
-    bool checkScopeForVariable(const Scope* scope, const Token *tok, const Variable& var, bool * const possibleInit, bool * const noreturn, const std::string &membervar);
-    bool checkIfForWhileHead(const Token *startparentheses, const Variable& var, bool suppressErrors, bool isuninit, const std::string &membervar);
-    bool checkLoopBody(const Token *tok, const Variable& var, const std::string &membervar, const bool suppressErrors);
-    static bool isVariableUsage(const Token *vartok, bool ispointer, bool cpp);
+    void checkScope(const Scope* scope, const std::set<std::string> &arrayTypeDefs);
+    void checkStruct(const Token *tok, const Variable &structvar);
+    enum Alloc { NO_ALLOC, NO_CTOR_CALL, CTOR_CALL, ARRAY };
+    bool checkScopeForVariable(const Token *tok, const Variable& var, bool* const possibleInit, bool* const noreturn, Alloc* const alloc, const std::string &membervar, std::map<unsigned int, VariableValue> variableValue);
+    bool checkIfForWhileHead(const Token *startparentheses, const Variable& var, bool suppressErrors, bool isuninit, Alloc alloc, const std::string &membervar);
+    bool checkLoopBody(const Token *tok, const Variable& var, const Alloc alloc, const std::string &membervar, const bool suppressErrors);
+    void checkRhs(const Token *tok, const Variable &var, Alloc alloc, unsigned int number_of_if, const std::string &membervar);
+    bool isVariableUsage(const Token *vartok, bool pointer, Alloc alloc) const;
+    int isFunctionParUsage(const Token *vartok, bool pointer, Alloc alloc) const;
     bool isMemberVariableAssignment(const Token *tok, const std::string &membervar) const;
-    bool isMemberVariableUsage(const Token *tok, bool isPointer, const std::string &membervar) const;
+    bool isMemberVariableUsage(const Token *tok, bool isPointer, Alloc alloc, const std::string &membervar) const;
 
-    /**
-     * @brief Uninitialized variables: analyse functions to see how they work with uninitialized variables
-     * @param tokens [in] the token list
-     * @param func [out] names of functions that don't handle uninitialized variables well. the function names are added to the set. No clearing is made.
-     */
-    void analyse(const Token * tokens, std::set<std::string> &func) const;
+    /** ValueFlow-based checking for dead pointer usage */
+    void deadPointer();
+    void deadPointerError(const Token *pointer, const Token *alias);
 
-    /** Save analysis results */
-    void saveAnalysisData(const std::set<std::string> &data) const;
-
-    /** @brief new type of check: check execution paths */
-    void executionPaths();
+    /** ValueFlow-based checking for uninitialized variables */
+    void valueFlowUninit();
 
     void uninitstringError(const Token *tok, const std::string &varname, bool strncpy_);
     void uninitdataError(const Token *tok, const std::string &varname);
     void uninitvarError(const Token *tok, const std::string &varname);
+    void uninitvarError(const Token *tok, const std::string &varname, Alloc alloc) {
+        if (alloc == NO_CTOR_CALL || alloc == CTOR_CALL)
+            uninitdataError(tok, varname);
+        else
+            uninitvarError(tok, varname);
+    }
     void uninitStructMemberError(const Token *tok, const std::string &membername);
 
 private:
-    void getErrorMessages(ErrorLogger *errorLogger, const Settings *settings) const {
-        CheckUninitVar c(0, settings, errorLogger);
+    void getErrorMessages(ErrorLogger *errorLogger, const Settings *settings) const override {
+        CheckUninitVar c(nullptr, settings, errorLogger);
 
         // error
-        c.uninitstringError(0, "varname", true);
-        c.uninitdataError(0, "varname");
-        c.uninitvarError(0, "varname");
-        c.uninitStructMemberError(0, "a.b");
+        c.uninitstringError(nullptr, "varname", true);
+        c.uninitdataError(nullptr, "varname");
+        c.uninitvarError(nullptr, "varname");
+        c.uninitStructMemberError(nullptr, "a.b");
+        c.deadPointerError(nullptr, nullptr);
     }
 
     static std::string myName() {
         return "Uninitialized variables";
     }
 
-    std::string classInfo() const {
+    std::string classInfo() const override {
         return "Uninitialized variables\n"
-               "* using uninitialized variables and data\n";
+               "- using uninitialized local variables\n"
+               "- using allocated data before it has been initialized\n"
+               "- using dead pointer\n";
     }
 };
 /// @}
 //---------------------------------------------------------------------------
-#endif
+#endif // checkuninitvarH

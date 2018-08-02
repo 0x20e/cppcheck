@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,16 +18,22 @@
 
 
 //---------------------------------------------------------------------------
-#ifndef CheckOtherH
-#define CheckOtherH
+#ifndef checkotherH
+#define checkotherH
 //---------------------------------------------------------------------------
 
-#include "config.h"
 #include "check.h"
-#include "settings.h"
+#include "config.h"
+#include "valueflow.h"
 
+#include <cstddef>
+#include <string>
+#include <vector>
+
+class ErrorLogger;
+class Settings;
 class Token;
-class Function;
+class Tokenizer;
 class Variable;
 
 /// @addtogroup Checks
@@ -39,84 +45,67 @@ class Variable;
 class CPPCHECKLIB CheckOther : public Check {
 public:
     /** @brief This constructor is used when registering the CheckClass */
-    CheckOther() : Check(myName())
-    { }
+    CheckOther() : Check(myName()) {
+    }
 
     /** @brief This constructor is used when running checks. */
     CheckOther(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger)
-        : Check(myName(), tokenizer, settings, errorLogger)
-    { }
+        : Check(myName(), tokenizer, settings, errorLogger) {
+    }
 
     /** @brief Run checks against the normal token list */
-    void runChecks(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger) {
+    void runChecks(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger) override {
         CheckOther checkOther(tokenizer, settings, errorLogger);
 
         // Checks
         checkOther.warningOldStylePointerCast();
         checkOther.invalidPointerCast();
-        checkOther.checkUnsignedDivision();
         checkOther.checkCharVariable();
-        checkOther.strPlusChar();
         checkOther.checkRedundantAssignment();
         checkOther.checkRedundantAssignmentInSwitch();
         checkOther.checkSuspiciousCaseInSwitch();
-        checkOther.checkSelfAssignment();
-        checkOther.checkDuplicateIf();
         checkOther.checkDuplicateBranch();
         checkOther.checkDuplicateExpression();
         checkOther.checkUnreachableCode();
         checkOther.checkSuspiciousSemicolon();
         checkOther.checkVariableScope();
-        checkOther.clarifyCondition();   // not simplified because ifAssign
         checkOther.checkSignOfUnsignedVariable();  // don't ignore casts (#3574)
         checkOther.checkIncompleteArrayFill();
-        checkOther.checkSuspiciousStringCompare();
         checkOther.checkVarFuncNullUB();
+        checkOther.checkNanInArithmeticExpression();
+        checkOther.checkCommaSeparatedReturn();
+        checkOther.checkRedundantPointerOp();
+        checkOther.checkZeroDivision();
+        checkOther.checkNegativeBitwiseShift();
+        checkOther.checkInterlockedDecrement();
+        checkOther.checkUnusedLabel();
+        checkOther.checkEvaluationOrder();
+        checkOther.checkFuncArgNamesDifferent();
     }
 
     /** @brief Run checks against the simplified token list */
-    void runSimplifiedChecks(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger) {
+    void runSimplifiedChecks(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger) override {
         CheckOther checkOther(tokenizer, settings, errorLogger);
 
         // Checks
-        checkOther.oppositeInnerCondition();
         checkOther.clarifyCalculation();
         checkOther.clarifyStatement();
-        checkOther.checkConstantFunctionParameter();
+        checkOther.checkPassByReference();
         checkOther.checkIncompleteStatement();
         checkOther.checkCastIntToCharAndBack();
 
-        checkOther.invalidFunctionUsage();
-        checkOther.checkZeroDivision();
-        checkOther.checkMathFunctions();
-        checkOther.checkCCTypeFunctions();
-
-        checkOther.redundantGetAndSetUserId();
-        checkOther.checkIncorrectLogicOperator();
         checkOther.checkMisusedScopedObject();
-        checkOther.checkMemsetZeroBytes();
-        checkOther.checkIncorrectStringCompare();
-        checkOther.checkSwitchCaseFallThrough();
-        checkOther.checkAlwaysTrueOrFalseStringCompare();
-        checkOther.checkModuloAlwaysTrueFalse();
         checkOther.checkPipeParameterSize();
 
         checkOther.checkInvalidFree();
-        checkOther.checkDoubleFree();
         checkOther.checkRedundantCopy();
-        checkOther.checkNegativeBitwiseShift();
         checkOther.checkSuspiciousEqualityComparison();
-        checkOther.checkSleepTimeInterval();
+        checkOther.checkComparisonFunctionIsAlwaysTrueOrFalse();
+        checkOther.checkAccessOfMovedVariable();
     }
-
-    /** To check the dead code in a program, which is inaccessible due to the counter-conditions check in nested-if statements **/
-    void oppositeInnerCondition();
 
     /** @brief Clarify calculation for ".. a * b ? .." */
     void clarifyCalculation();
-
-    /** @brief Suspicious condition (assignment+comparison) */
-    void clarifyCondition();
 
     /** @brief Suspicious statement like '*A++;' */
     void clarifyStatement();
@@ -127,24 +116,15 @@ public:
     /** @brief Check for pointer casts to a type with an incompatible binary data representation */
     void invalidPointerCast();
 
-    /**
-     * @brief Invalid function usage (invalid radix / overlapping data)
-     *
-     * %Check that given function parameters are valid according to the standard
-     * - wrong radix given for strtol/strtoul
-     * - overlapping data when using sprintf/snprintf
-     */
-    void invalidFunctionUsage();
-
-    /** @brief %Check for unsigned division */
-    void checkUnsignedDivision();
-
     /** @brief %Check scope of variables */
     void checkVariableScope();
     static bool checkInnerScope(const Token *tok, const Variable* var, bool& used);
 
-    /** @brief %Check for constant function parameter */
-    void checkConstantFunctionParameter();
+    /** @brief %Check for comma separated statements in return */
+    void checkCommaSeparatedReturn();
+
+    /** @brief %Check for function parameters that should be passed by reference */
+    void checkPassByReference();
 
     /** @brief Using char variable as array index / as operand in bit operation */
     void checkCharVariable();
@@ -152,20 +132,11 @@ public:
     /** @brief Incomplete statement. A statement that only contains a constant or variable */
     void checkIncompleteStatement();
 
-    /** @brief str plus char (unusual pointer arithmetic) */
-    void strPlusChar();
-
     /** @brief %Check zero division*/
     void checkZeroDivision();
 
-    /** @brief %Check for parameters given to math function that do not make sense*/
-    void checkMathFunctions();
-
-    /** @brief %Check for parameters given to cctype function that do make error*/
-    void checkCCTypeFunctions();
-
-    /** @brief % Check for seteuid(geteuid()) or setuid(getuid())*/
-    void redundantGetAndSetUserId();
+    /** @brief Check for NaN (not-a-number) in an arithmetic expression */
+    void checkNanInArithmeticExpression();
 
     /** @brief copying to memory or assigning to a variable twice */
     void checkRedundantAssignment();
@@ -179,41 +150,14 @@ public:
     /** @brief %Check for code like 'case A||B:'*/
     void checkSuspiciousEqualityComparison();
 
-    /** @brief %Check for switch case fall through without comment */
-    void checkSwitchCaseFallThrough();
-
-    /** @brief %Check for assigning a variable to itself*/
-    void checkSelfAssignment();
-
-    /** @brief %Check for testing for mutual exclusion over ||*/
-    void checkIncorrectLogicOperator();
-
     /** @brief %Check for objects that are destroyed immediately */
     void checkMisusedScopedObject();
-
-    /** @brief %Check for filling zero bytes with memset() */
-    void checkMemsetZeroBytes();
-
-    /** @brief %Check for using bad usage of strncmp and substr */
-    void checkIncorrectStringCompare();
-
-    /** @brief %Check for comparison of a string literal with a char* variable */
-    void checkSuspiciousStringCompare();
-
-    /** @brief %Check for suspicious code where multiple if have the same expression (e.g "if (a) { } else if (a) { }") */
-    void checkDuplicateIf();
 
     /** @brief %Check for suspicious code where if and else branch are the same (e.g "if (a) b = true; else b = true;") */
     void checkDuplicateBranch();
 
     /** @brief %Check for suspicious code with the same expression on both sides of operator (e.g "if (a && a)") */
     void checkDuplicateExpression();
-
-    /** @brief %Check for suspicious code that compares string literals for equality */
-    void checkAlwaysTrueOrFalseStringCompare();
-
-    /** @brief %Check for suspicious usage of modulo (e.g. "if(var % 4 == 4)") */
-    void checkModuloAlwaysTrueFalse();
 
     /** @brief %Check for code that gets never executed, such as duplicate break statements */
     void checkUnreachableCode();
@@ -228,14 +172,10 @@ public:
     void checkInvalidFree();
     void invalidFreeError(const Token *tok, bool inconclusive);
 
-    /** @brief %Check for double free or double close operations */
-    void checkDoubleFree();
-    void doubleFreeError(const Token *tok, const std::string &varname);
-
     /** @brief %Check for code creating redundant copies */
     void checkRedundantCopy();
 
-    /** @brief %Check for bitwise operation with negative right operand */
+    /** @brief %Check for bitwise shift with negative right operand */
     void checkNegativeBitwiseShift();
 
     /** @brief %Check for buffers that are filled incompletely with memset and similar functions */
@@ -250,57 +190,59 @@ public:
     /** @brief %Check to avoid casting a return value to unsigned char and then back to integer type.  */
     void checkCastIntToCharAndBack();
 
-    /** @brief %Check providing too big sleep time intervals on POSIX systems. */
-    void checkSleepTimeInterval();
+    /** @brief %Check for using of comparison functions evaluating always to true or false. */
+    void checkComparisonFunctionIsAlwaysTrueOrFalse();
+
+    /** @brief %Check for redundant pointer operations */
+    void checkRedundantPointerOp();
+
+    /** @brief %Check for race condition with non-interlocked access after InterlockedDecrement() */
+    void checkInterlockedDecrement();
+
+    /** @brief %Check for unused labels */
+    void checkUnusedLabel();
+
+    /** @brief %Check for expression that depends on order of evaluation of side effects */
+    void checkEvaluationOrder();
+
+    /** @brief %Check for access of moved or forwarded variable */
+    void checkAccessOfMovedVariable();
+
+    /** @brief %Check if function declaration and definition argument names different */
+    void checkFuncArgNamesDifferent();
 
 private:
-    bool isUnsigned(const Variable *var) const;
-    static bool isSigned(const Variable *var);
-
     // Error messages..
-    void checkSleepTimeError(const Token *tok, const std::string &strDim);
+    void checkComparisonFunctionIsAlwaysTrueOrFalseError(const Token* tok, const std::string &functionName, const std::string &varName, const bool result);
     void checkCastIntToCharAndBackError(const Token *tok, const std::string &strFunctionName);
     void checkPipeParameterSizeError(const Token *tok, const std::string &strVarName, const std::string &strDim);
-    void oppositeInnerConditionError(const Token *tok);
     void clarifyCalculationError(const Token *tok, const std::string &op);
-    void clarifyConditionError(const Token *tok, bool assign, bool boolop);
     void clarifyStatementError(const Token* tok);
-    void redundantGetAndSetUserIdError(const Token *tok);
     void cstyleCastError(const Token *tok);
     void invalidPointerCastError(const Token* tok, const std::string& from, const std::string& to, bool inconclusive);
-    void dangerousUsageStrtolError(const Token *tok, const std::string& funcname);
-    void sprintfOverlappingDataError(const Token *tok, const std::string &varname);
-    void udivError(const Token *tok, bool inconclusive);
-    void passedByValueError(const Token *tok, const std::string &parname);
+    void passedByValueError(const Token *tok, const std::string &parname, bool inconclusive);
     void constStatementError(const Token *tok, const std::string &type);
-    void charArrayIndexError(const Token *tok);
+    void signedCharArrayIndexError(const Token *tok);
+    void unknownSignCharArrayIndexError(const Token *tok);
     void charBitOpError(const Token *tok);
     void variableScopeError(const Token *tok, const std::string &varname);
-    void strPlusCharError(const Token *tok);
-    void zerodivError(const Token *tok);
-    void mathfunctionCallError(const Token *tok, const unsigned int numParam = 1);
-    void cctypefunctionCallError(const Token *tok, const std::string &functionName, const std::string &value);
+    void zerodivError(const Token *tok, const ValueFlow::Value *value);
+    void nanInArithmeticExpressionError(const Token *tok);
     void redundantAssignmentError(const Token *tok1, const Token* tok2, const std::string& var, bool inconclusive);
     void redundantAssignmentInSwitchError(const Token *tok1, const Token *tok2, const std::string &var);
     void redundantCopyError(const Token *tok1, const Token* tok2, const std::string& var);
     void redundantCopyInSwitchError(const Token *tok1, const Token* tok2, const std::string &var);
     void redundantBitwiseOperationInSwitchError(const Token *tok, const std::string &varname);
-    void switchCaseFallThrough(const Token *tok);
     void suspiciousCaseInSwitchError(const Token* tok, const std::string& operatorString);
     void suspiciousEqualityComparisonError(const Token* tok);
     void selfAssignmentError(const Token *tok, const std::string &varname);
-    void incorrectLogicOperatorError(const Token *tok, const std::string &condition, bool always);
-    void redundantConditionError(const Token *tok, const std::string &text);
     void misusedScopeObjectError(const Token *tok, const std::string &varname);
-    void memsetZeroBytesError(const Token *tok, const std::string &varname);
-    void incorrectStringCompareError(const Token *tok, const std::string& func, const std::string &string);
-    void incorrectStringBooleanError(const Token *tok, const std::string& string);
-    void duplicateIfError(const Token *tok1, const Token *tok2);
     void duplicateBranchError(const Token *tok1, const Token *tok2);
+    void duplicateAssignExpressionError(const Token *tok1, const Token *tok2);
+    void oppositeExpressionError(const Token *tok1, const Token *tok2, const std::string &op);
     void duplicateExpressionError(const Token *tok1, const Token *tok2, const std::string &op);
-    void alwaysTrueFalseStringCompareError(const Token *tok, const std::string& str1, const std::string& str2);
-    void alwaysTrueStringVariableCompareError(const Token *tok, const std::string& str1, const std::string& str2);
-    void suspiciousStringCompareError(const Token* tok, const std::string& var);
+    void duplicateValueTernaryError(const Token *tok);
+    void duplicateExpressionTernaryError(const Token *tok);
     void duplicateBreakError(const Token *tok, bool inconclusive);
     void unreachableCodeError(const Token* tok, bool inconclusive);
     void unsignedLessThanZeroError(const Token *tok, const std::string &varname, bool inconclusive);
@@ -308,149 +250,142 @@ private:
     void unsignedPositiveError(const Token *tok, const std::string &varname, bool inconclusive);
     void pointerPositiveError(const Token *tok, bool inconclusive);
     void SuspiciousSemicolonError(const Token *tok);
-    void doubleCloseDirError(const Token *tok, const std::string &varname);
-    void moduloAlwaysTrueFalseError(const Token* tok, const std::string& maxVal);
-    void negativeBitwiseShiftError(const Token *tok);
+    void negativeBitwiseShiftError(const Token *tok, int op);
     void redundantCopyError(const Token *tok, const std::string &varname);
     void incompleteArrayFillError(const Token* tok, const std::string& buffer, const std::string& function, bool boolean);
     void varFuncNullUBError(const Token *tok);
+    void commaSeparatedReturnError(const Token *tok);
+    void redundantPointerOpError(const Token* tok, const std::string& varname, bool inconclusive);
+    void raceAfterInterlockedDecrementError(const Token* tok);
+    void unusedLabelError(const Token* tok, bool inSwitch);
+    void unknownEvaluationOrder(const Token* tok);
+    static bool isMovedParameterAllowedForInconclusiveFunction(const Token * tok);
+    void accessMovedError(const Token *tok, const std::string &varname, const ValueFlow::Value *value, bool inconclusive);
+    void funcArgNamesDifferent(const std::string & functionName, size_t index, const Token* declaration, const Token* definition);
+    void funcArgOrderDifferent(const std::string & functionName, const Token * declaration, const Token * definition, const std::vector<const Token*> & declarations, const std::vector<const Token*> & definitions);
 
-    void getErrorMessages(ErrorLogger *errorLogger, const Settings *settings) const {
-        CheckOther c(0, settings, errorLogger);
+    void getErrorMessages(ErrorLogger *errorLogger, const Settings *settings) const override {
+        CheckOther c(nullptr, settings, errorLogger);
 
         // error
-        c.sprintfOverlappingDataError(0, "varname");
-        c.udivError(0, false);
-        c.zerodivError(0);
-        c.mathfunctionCallError(0);
-        c.misusedScopeObjectError(NULL, "varname");
-        c.doubleFreeError(0, "varname");
-        c.invalidPointerCastError(0, "float", "double", false);
-        c.negativeBitwiseShiftError(0);
-        c.checkPipeParameterSizeError(0, "varname", "dimension");
-        c.checkSleepTimeError(0,"dimension");
+        c.zerodivError(nullptr, nullptr);
+        c.misusedScopeObjectError(nullptr, "varname");
+        c.invalidPointerCastError(nullptr,  "float", "double", false);
+        c.negativeBitwiseShiftError(nullptr, 1);
+        c.negativeBitwiseShiftError(nullptr, 2);
+        c.checkPipeParameterSizeError(nullptr,  "varname", "dimension");
+        c.raceAfterInterlockedDecrementError(nullptr);
+        c.invalidFreeError(nullptr, false);
 
         //performance
-        c.redundantCopyError(0, "varname");
-        c.redundantCopyError(0, 0, "var");
-        c.redundantAssignmentError(0, 0, "var", false);
+        c.redundantCopyError(nullptr,  "varname");
+        c.redundantCopyError(nullptr, nullptr, "var");
+        c.redundantAssignmentError(nullptr, nullptr, "var", false);
 
         // style/warning
-        c.checkCastIntToCharAndBackError(0,"func_name");
-        c.oppositeInnerConditionError(0);
-        c.cstyleCastError(0);
-        c.dangerousUsageStrtolError(0, "strtol");
-        c.passedByValueError(0, "parametername");
-        c.constStatementError(0, "type");
-        c.charArrayIndexError(0);
-        c.charBitOpError(0);
-        c.variableScopeError(0, "varname");
-        c.strPlusCharError(0);
-        c.redundantAssignmentInSwitchError(0, 0, "var");
-        c.redundantCopyInSwitchError(0, 0, "var");
-        c.switchCaseFallThrough(0);
-        c.suspiciousCaseInSwitchError(0, "||");
-        c.suspiciousEqualityComparisonError(0);
-        c.selfAssignmentError(0, "varname");
-        c.incorrectLogicOperatorError(0, "foo > 3 && foo < 4", true);
-        c.redundantConditionError(0, "If x > 10 the condition x > 11 is always true.");
-        c.memsetZeroBytesError(0, "varname");
-        c.clarifyCalculationError(0, "+");
-        c.clarifyConditionError(0, true, false);
-        c.clarifyStatementError(0);
-        c.incorrectStringCompareError(0, "substr", "\"Hello World\"");
-        c.suspiciousStringCompareError(0, "foo");
-        c.incorrectStringBooleanError(0, "\"Hello World\"");
-        c.duplicateIfError(0, 0);
-        c.duplicateBranchError(0, 0);
-        c.duplicateExpressionError(0, 0, "&&");
-        c.alwaysTrueFalseStringCompareError(0, "str1", "str2");
-        c.alwaysTrueStringVariableCompareError(0, "varname1", "varname2");
-        c.duplicateBreakError(0, false);
-        c.unreachableCodeError(0, false);
-        c.unsignedLessThanZeroError(0, "varname", false);
-        c.unsignedPositiveError(0, "varname", false);
-        c.pointerLessThanZeroError(0, false);
-        c.pointerPositiveError(0, false);
-        c.SuspiciousSemicolonError(0);
-        c.cctypefunctionCallError(0, "funname", "value");
-        c.moduloAlwaysTrueFalseError(0, "1");
-        c.incompleteArrayFillError(0, "buffer", "memset", false);
-        c.varFuncNullUBError(0);
+        c.checkComparisonFunctionIsAlwaysTrueOrFalseError(nullptr, "isless","varName",false);
+        c.checkCastIntToCharAndBackError(nullptr, "func_name");
+        c.cstyleCastError(nullptr);
+        c.passedByValueError(nullptr, "parametername", false);
+        c.constStatementError(nullptr,  "type");
+        c.signedCharArrayIndexError(nullptr);
+        c.unknownSignCharArrayIndexError(nullptr);
+        c.charBitOpError(nullptr);
+        c.variableScopeError(nullptr,  "varname");
+        c.redundantAssignmentInSwitchError(nullptr, nullptr, "var");
+        c.redundantCopyInSwitchError(nullptr, nullptr, "var");
+        c.suspiciousCaseInSwitchError(nullptr,  "||");
+        c.suspiciousEqualityComparisonError(nullptr);
+        c.selfAssignmentError(nullptr,  "varname");
+        c.clarifyCalculationError(nullptr,  "+");
+        c.clarifyStatementError(nullptr);
+        c.duplicateBranchError(nullptr, nullptr);
+        c.oppositeExpressionError(nullptr, nullptr, "&&");
+        c.duplicateExpressionError(nullptr, nullptr, "&&");
+        c.duplicateValueTernaryError(nullptr);
+        c.duplicateExpressionTernaryError(nullptr);
+        c.duplicateBreakError(nullptr,  false);
+        c.unreachableCodeError(nullptr,  false);
+        c.unsignedLessThanZeroError(nullptr,  "varname", false);
+        c.unsignedPositiveError(nullptr,  "varname", false);
+        c.pointerLessThanZeroError(nullptr,  false);
+        c.pointerPositiveError(nullptr,  false);
+        c.SuspiciousSemicolonError(nullptr);
+        c.incompleteArrayFillError(nullptr,  "buffer", "memset", false);
+        c.varFuncNullUBError(nullptr);
+        c.nanInArithmeticExpressionError(nullptr);
+        c.commaSeparatedReturnError(nullptr);
+        c.redundantPointerOpError(nullptr,  "varname", false);
+        c.unusedLabelError(nullptr,  true);
+        c.unusedLabelError(nullptr,  false);
+        c.unknownEvaluationOrder(nullptr);
+        c.accessMovedError(nullptr, "v", nullptr, false);
+        c.funcArgNamesDifferent("function", 1, nullptr, nullptr);
+        c.redundantBitwiseOperationInSwitchError(nullptr, "varname");
+
+        const std::vector<const Token *> nullvec;
+        c.funcArgOrderDifferent("function", nullptr, nullptr, nullvec, nullvec);
     }
 
     static std::string myName() {
         return "Other";
     }
 
-    std::string classInfo() const {
+    std::string classInfo() const override {
         return "Other checks\n"
 
                // error
-               "* Assigning bool value to pointer (converting bool value to address)\n"
-               "* division with zero\n"
-               "* scoped object destroyed immediately after construction\n"
-               "* assignment in an assert statement\n"
-               "* incorrect length arguments for 'substr' and 'strncmp'\n"
-               "* free() or delete of an invalid memory location\n"
-               "* double free() or double closedir()\n"
-               "* bitwise operation with negative right operand\n"
-               "* provide wrong dimensioned array to pipe() system command (--std=posix)\n"
-               "* cast the return values of getc(),fgetc() and getchar() to character and compare it to EOF\n"
-               "* provide too big sleep times on POSIX systems\n"
+               "- division with zero\n"
+               "- scoped object destroyed immediately after construction\n"
+               "- assignment in an assert statement\n"
+               "- free() or delete of an invalid memory location\n"
+               "- bitwise operation with negative right operand\n"
+               "- provide wrong dimensioned array to pipe() system command (--std=posix)\n"
+               "- cast the return values of getc(),fgetc() and getchar() to character and compare it to EOF\n"
+               "- race condition with non-interlocked access after InterlockedDecrement() call\n"
+               "- expression 'x = x++;' depends on order of evaluation of side effects\n"
 
-               //performance
-               "* redundant data copying for const variable\n"
-               "* subsequent assignment or copying to a variable or buffer\n"
+               // warning
+               "- either division by zero or useless condition\n"
+               "- access of moved or forwarded variable.\n"
+
+               // performance
+               "- redundant data copying for const variable\n"
+               "- subsequent assignment or copying to a variable or buffer\n"
+               "- passing parameter by value\n"
+
+               // portability
+               "- Passing NULL pointer to function with variable number of arguments leads to UB.\n"
 
                // style
-               "* Find dead code which is inaccessible due to the counter-conditions check in nested if statements\n"
-               "* C-style pointer cast in cpp file\n"
-               "* casting between incompatible pointer types\n"
-               "* redundant if\n"
-               "* bad usage of the function 'strtol'\n"
-               "* [[CheckUnsignedDivision|unsigned division]]\n"
-               "* passing parameter by value\n"
-               "* [[IncompleteStatement|Incomplete statement]]\n"
-               "* [[charvar|check how signed char variables are used]]\n"
-               "* variable scope can be limited\n"
-               "* condition that is always true/false\n"
-               "* unusual pointer arithmetic. For example: \"abc\" + 'd'\n"
-               "* redundant assignment in a switch statement\n"
-               "* redundant pre/post operation in a switch statement\n"
-               "* redundant bitwise operation in a switch statement\n"
-               "* redundant strcpy in a switch statement\n"
-               "* assignment of a variable to itself\n"
-               "* Suspicious case labels in switch()\n"
-               "* Suspicious equality comparisons\n"
-               "* mutual exclusion over || always evaluating to true\n"
-               "* Clarify calculation with parentheses\n"
-               "* suspicious condition (assignment+comparison)\n"
-               "* suspicious condition (runtime comparison of string literals)\n"
-               "* suspicious condition (string literals as boolean)\n"
-               "* suspicious comparison of a string literal with a char* variable\n"
-               "* duplicate break statement\n"
-               "* unreachable code\n"
-               "* testing if unsigned variable is negative\n"
-               "* testing is unsigned variable is positive\n"
-               "* Suspicious use of ; at the end of 'if/for/while' statement.\n"
-               "* incorrect usage of functions from ctype library.\n"
-               "* Comparisons of modulo results that are always true/false.\n"
-               "* Array filled incompletely using memset/memcpy/memmove.\n"
-               "* redundant get and set function of user id (--std=posix).\n"
-               "* Passing NULL pointer to function with variable number of arguments leads to UB on some platforms.\n";
+               "- C-style pointer cast in C++ code\n"
+               "- casting between incompatible pointer types\n"
+               "- [Incomplete statement](IncompleteStatement)\n"
+               "- [check how signed char variables are used](CharVar)\n"
+               "- variable scope can be limited\n"
+               "- unusual pointer arithmetic. For example: \"abc\" + 'd'\n"
+               "- redundant assignment, increment, or bitwise operation in a switch statement\n"
+               "- redundant strcpy in a switch statement\n"
+               "- Suspicious case labels in switch()\n"
+               "- assignment of a variable to itself\n"
+               "- Comparison of values leading always to true or false\n"
+               "- Clarify calculation with parentheses\n"
+               "- suspicious comparison of '\\0' with a char* variable\n"
+               "- duplicate break statement\n"
+               "- unreachable code\n"
+               "- testing if unsigned variable is negative/positive\n"
+               "- Suspicious use of ; at the end of 'if/for/while' statement.\n"
+               "- Array filled incompletely using memset/memcpy/memmove.\n"
+               "- NaN (not a number) value used in arithmetic expression.\n"
+               "- comma in return statement (the comma can easily be misread as a semicolon).\n"
+               "- prefer erfc, expm1 or log1p to avoid loss of precision.\n"
+               "- identical code in both branches of if/else or ternary operator.\n"
+               "- redundant pointer operation on pointer like &*some_ptr.\n"
+               "- find unused 'goto' labels.\n"
+               "- function declaration and definition argument names different.\n"
+               "- function declaration and definition argument order different.\n";
     }
-
-    void checkExpressionRange(const std::list<const Function*> &constFunctions,
-                              const Token *start,
-                              const Token *end,
-                              const std::string &toCheck);
-
-    void complexDuplicateExpressionCheck(const std::list<const Function*> &constFunctions,
-                                         const Token *classStart,
-                                         const std::string &toCheck,
-                                         const std::string &alt);
 };
 /// @}
 //---------------------------------------------------------------------------
-#endif
+#endif // checkotherH

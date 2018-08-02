@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,22 +16,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
-#include "tokenize.h"
 #include "checkclass.h"
+#include "platform.h"
+#include "settings.h"
 #include "testsuite.h"
+#include "tokenize.h"
 
-#include <sstream>
-
-extern std::ostringstream errout;
+#include <simplecpp.h>
+#include <map>
+#include <vector>
 
 class TestUnusedPrivateFunction : public TestFixture {
 public:
-    TestUnusedPrivateFunction() : TestFixture("TestUnusedPrivateFunction")
-    { }
+    TestUnusedPrivateFunction() : TestFixture("TestUnusedPrivateFunction") {
+    }
 
 private:
-    void run() {
+    Settings settings;
+
+    void run() override {
+        settings.addEnabled("style");
+
         TEST_CASE(test1);
         TEST_CASE(test2);
         TEST_CASE(test3);
@@ -45,8 +50,10 @@ private:
         TEST_CASE(func_pointer3);
         TEST_CASE(func_pointer4); // ticket #2807
         TEST_CASE(func_pointer5); // ticket #2233
+        TEST_CASE(func_pointer6); // ticket #4787
 
         TEST_CASE(ctor);
+        TEST_CASE(ctor2);
 
         TEST_CASE(classInClass);
         TEST_CASE(sameFunctionNames);
@@ -70,21 +77,33 @@ private:
 
         TEST_CASE(multiFile);
         TEST_CASE(unknownBaseTemplate); // ticket #2580
+        TEST_CASE(hierarchie_loop); // ticket 5590
+
+        TEST_CASE(staticVariable); //ticket #5566
     }
 
 
-    void check(const char code[]) {
+    void check(const char code[], Settings::PlatformType platform = Settings::Native) {
         // Clear the error buffer..
         errout.str("");
 
-        Settings settings;
-        settings.addEnabled("style");
+        settings.platform(platform);
+
+        // Raw tokens..
+        std::vector<std::string> files(1, "test.cpp");
+        std::istringstream istr(code);
+        const simplecpp::TokenList tokens1(istr, files, files[0]);
+
+        // Preprocess..
+        simplecpp::TokenList tokens2(files);
+        std::map<std::string, simplecpp::TokenList*> filedata;
+        simplecpp::preprocess(tokens2, tokens1, files, filedata, simplecpp::DUI());
 
         // Tokenize..
         Tokenizer tokenizer(&settings, this);
-        std::istringstream istr(code);
-        tokenizer.tokenize(istr, "test.cpp");
-        tokenizer.simplifyTokenList();
+        tokenizer.createTokens(&tokens2);
+        tokenizer.simplifyTokens1("");
+        tokenizer.simplifyTokenList2();
 
         // Check for unused private functions..
         CheckClass checkClass(&tokenizer, &settings, this);
@@ -110,7 +129,7 @@ private:
 
         ASSERT_EQUALS("[test.cpp:4]: (style) Unused private function: 'Fred::f'\n", errout.str());
 
-        check("#file \"p.h\"\n"
+        check("#line 1 \"p.h\"\n"
               "class Fred\n"
               "{\n"
               "private:\n"
@@ -119,7 +138,7 @@ private:
               "    Fred();\n"
               "};\n"
               "\n"
-              "#endfile\n"
+              "#line 1 \"p.cpp\"\n"
               "Fred::Fred()\n"
               "{ }\n"
               "\n"
@@ -128,7 +147,7 @@ private:
 
         ASSERT_EQUALS("[p.h:4]: (style) Unused private function: 'Fred::f'\n", errout.str());
 
-        check("#file \"p.h\"\n"
+        check("#line 1 \"p.h\"\n"
               "class Fred\n"
               "{\n"
               "private:\n"
@@ -136,7 +155,7 @@ private:
               "};\n"
               "\n"
               "\n"
-              "#endfile\n"
+              "#line 1 \"p.cpp\"\n"
               "\n"
               "void Fred::f()\n"
               "{\n"
@@ -144,7 +163,7 @@ private:
         ASSERT_EQUALS("[p.h:4]: (style) Unused private function: 'Fred::f'\n", errout.str());
 
         // Don't warn about include files which implementation we don't see
-        check("#file \"p.h\"\n"
+        check("#line 1 \"p.h\"\n"
               "class Fred\n"
               "{\n"
               "private:\n"
@@ -152,7 +171,7 @@ private:
               "void g() {}\n"
               "};\n"
               "\n"
-              "#endfile\n"
+              "#line 1 \"p.cpp\"\n"
               "\n"
               "int main()\n"
               "{\n"
@@ -313,6 +332,18 @@ private:
     }
 
 
+    void func_pointer6() { // #4787
+        check("class Test {\n"
+              "private:\n"
+              "    static void a(const char* p) { }\n"
+              "public:\n"
+              "    void test(void* f = a) {\n"
+              "        f(\"test\");\n"
+              "    }\n"
+              "};");
+        ASSERT_EQUALS("", errout.str());
+    }
+
 
     void ctor() {
         check("class PrivateCtor\n"
@@ -326,6 +357,18 @@ private:
               "    int numOfThreads;\n"
               "};");
 
+        ASSERT_EQUALS("", errout.str());
+    }
+
+    void ctor2() {
+        check("struct State {\n"
+              "  State(double const totalWeighting= TotalWeighting()) :\n"
+              "    totalWeighting_(totalWeighting) {}\n"
+              "private:\n"
+              "  double TotalWeighting() { return 123.0; }\n"  // called from constructor
+              "public:\n"
+              "  double totalWeighting_;\n"
+              "};");
         ASSERT_EQUALS("", errout.str());
     }
 
@@ -363,6 +406,17 @@ private:
               "    };\n"
               "};");
         ASSERT_EQUALS("", errout.str());
+
+        check("class A {\n"  // #6968 - outer definition
+              "public:\n"
+              "  class B;\n"
+              "private:\n"
+              "  void f() {}\n"
+              "}\n"
+              "class A::B {"
+              "  B() { A a; a.f(); }\n"
+              "}\n");
+        ASSERT_EQUALS("", errout.str());
     }
 
 
@@ -389,7 +443,7 @@ private:
               "class A\n"
               "{\n"
               "public:\n"
-              "    A()\n"
+              "    A();\n"
               "    void a();\n"
               "private:\n"
               "    void b();\n"
@@ -439,6 +493,24 @@ private:
               "class Derived2: public Derived1 {\n"
               "private:\n"
               "    void func() {}\n"
+              "};");
+        ASSERT_EQUALS("", errout.str());
+
+        check("class Base {\n"
+              "public:\n"
+              "    void dostuff() {\n"
+              "      f();\n"
+              "    }\n"
+              "\n"
+              "private:\n"
+              "    virtual Base* f() = 0;\n"
+              "};\n"
+              "\n"
+              "class Derived : public Base {\n"
+              "private:\n"
+              "    Derived* f() {\n"
+              "      return 0;\n"
+              "    }\n"
               "};");
         ASSERT_EQUALS("", errout.str());
     }
@@ -491,7 +563,7 @@ private:
               "public:\n"
               "    Foo() { }\n"
               "    __property int x = {read=getx}\n"
-              "};");
+              "};", Settings::Win32A);
         ASSERT_EQUALS("", errout.str());
     }
 
@@ -504,7 +576,7 @@ private:
               "    }\n"
               "public:\n"
               "    Foo() { }\n"
-              "};");
+              "};", Settings::Win32A);
         ASSERT_EQUALS("", errout.str());
     }
 
@@ -552,6 +624,19 @@ private:
               "    }\n"
               "};");
         ASSERT_EQUALS("[test.cpp:8]: (style) Unused private function: 'Fred::startListening'\n", errout.str());
+
+        // #5059
+        check("class Fred {\n"
+              "    void* operator new(size_t obj_size, size_t buf_size) {}\n"
+              "};");
+        TODO_ASSERT_EQUALS("[test.cpp:2]: (style) Unused private function: 'Fred::operatornew'\n", "", errout.str()); // No message for operators - we currently cannot check their usage
+
+        check("class Fred {\n"
+              "    void* operator new(size_t obj_size, size_t buf_size) {}\n"
+              "public:\n"
+              "    void* foo() { return new(size) Fred(); }\n"
+              "};");
+        ASSERT_EQUALS("", errout.str());
     }
 
     void testDoesNotIdentifyMethodAsFirstFunctionArgument() {
@@ -666,6 +751,49 @@ private:
         ASSERT_EQUALS("", errout.str());
     }
 
+    void hierarchie_loop() {
+        check("class InfiniteB : InfiniteA {\n"
+              "    class D {\n"
+              "    };\n"
+              "};\n"
+              "namespace N {\n"
+              "    class InfiniteA : InfiniteB {\n"
+              "    };\n"
+              "}\n"
+              "class InfiniteA : InfiniteB {\n"
+              "    void foo();\n"
+              "};\n"
+              "void InfiniteA::foo() {\n"
+              "    C a;\n"
+              "}");
+
+        ASSERT_EQUALS("", errout.str());
+    }
+
+    void staticVariable() {
+        check("class Foo {\n"
+              "    static int i;\n"
+              "    static int F() const { return 1; }\n"
+              "};\n"
+              "int Foo::i = Foo::F();");
+        ASSERT_EQUALS("", errout.str());
+
+        check("class Foo {\n"
+              "    static int i;\n"
+              "    int F() const { return 1; }\n"
+              "};\n"
+              "Foo f;\n"
+              "int Foo::i = f.F();");
+        ASSERT_EQUALS("", errout.str());
+
+        check("class Foo {\n"
+              "    static int i;\n"
+              "    static int F() const { return 1; }\n"
+              "};\n"
+              "int Foo::i = sth();"
+              "int i = F();");
+        ASSERT_EQUALS("[test.cpp:3]: (style) Unused private function: 'Foo::F'\n", errout.str());
+    }
 };
 
 REGISTER_TEST(TestUnusedPrivateFunction)

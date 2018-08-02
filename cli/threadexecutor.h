@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +19,13 @@
 #ifndef THREADEXECUTOR_H
 #define THREADEXECUTOR_H
 
+#include "errorlogger.h"
+#include "importproject.h"
+
+#include <cstddef>
+#include <list>
 #include <map>
 #include <string>
-#include <list>
-#include "errorlogger.h"
 
 #if (defined(__GNUC__) || defined(__sun)) && !defined(__MINGW32__)
 #define THREADING_MODEL_FORK
@@ -42,13 +45,13 @@ class Settings;
  */
 class ThreadExecutor : public ErrorLogger {
 public:
-    ThreadExecutor(const std::map<std::string, std::size_t> &files, Settings &settings, ErrorLogger &_errorLogger);
+    ThreadExecutor(const std::map<std::string, std::size_t> &files, Settings &settings, ErrorLogger &errorLogger);
     virtual ~ThreadExecutor();
     unsigned int check();
 
-    virtual void reportOut(const std::string &outmsg);
-    virtual void reportErr(const ErrorLogger::ErrorMessage &msg);
-    virtual void reportInfo(const ErrorLogger::ErrorMessage &msg);
+    virtual void reportOut(const std::string &outmsg) override;
+    virtual void reportErr(const ErrorLogger::ErrorMessage &msg) override;
+    virtual void reportInfo(const ErrorLogger::ErrorMessage &msg) override;
 
     /**
      * @brief Add content to a file, to be used in unit testing.
@@ -87,6 +90,13 @@ private:
     std::list<std::string> _errorList;
     int _wpipe;
 
+    /**
+     * @brief Check load average condition
+     * @param nchildren - count of currently ran children
+     * @return true - if new process can be started
+     */
+    bool checkLoadAverage(size_t nchildren);
+
 public:
     /**
      * @return true if support for threads exist.
@@ -102,6 +112,7 @@ private:
 
     std::map<std::string, std::string> _fileContents;
     std::map<std::string, std::size_t>::const_iterator _itNextFile;
+    std::list<ImportProject::FileSettings>::const_iterator _itNextFileSettings;
     std::size_t _processedFiles;
     std::size_t _totalFiles;
     std::size_t _processedSize;

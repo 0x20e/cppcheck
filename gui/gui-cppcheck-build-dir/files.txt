@@ -1,0 +1,8 @@
+ConsoleApplication1.a1:Debug|Win32:C:/Users/user/Desktop/ConsoleApplication1/ConsoleApplication1/ConsoleApplication1.cpp
+ConsoleApplication1.a2:Release|Win32:C:/Users/user/Desktop/ConsoleApplication1/ConsoleApplication1/ConsoleApplication1.cpp
+ConsoleApplication1.a3:Debug|x64:C:/Users/user/Desktop/ConsoleApplication1/ConsoleApplication1/ConsoleApplication1.cpp
+ConsoleApplication1.a4:Release|x64:C:/Users/user/Desktop/ConsoleApplication1/ConsoleApplication1/ConsoleApplication1.cpp
+stdafx.a1:Debug|Win32:C:/Users/user/Desktop/ConsoleApplication1/ConsoleApplication1/stdafx.cpp
+stdafx.a2:Release|Win32:C:/Users/user/Desktop/ConsoleApplication1/ConsoleApplication1/stdafx.cpp
+stdafx.a3:Debug|x64:C:/Users/user/Desktop/ConsoleApplication1/ConsoleApplication1/stdafx.cpp
+stdafx.a4:Release|x64:C:/Users/user/Desktop/ConsoleApplication1/ConsoleApplication1/stdafx.cpp

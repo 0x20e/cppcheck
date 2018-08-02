@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
 #ifndef CMDLINE_PARSER_H
 #define CMDLINE_PARSER_H
 
-#include <vector>
 #include <string>
+#include <vector>
 
 class Settings;
 
@@ -49,47 +49,47 @@ public:
      * Parse given command line.
      * @return true if command line was ok, false if there was an error.
      */
-    bool ParseFromArgs(int argc, const char* const argv[]);
+    bool parseFromArgs(int argc, const char* const argv[]);
 
     /**
      * Return if user wanted to see program version.
      */
-    bool GetShowVersion() const {
+    bool getShowVersion() const {
         return _showVersion;
     }
 
     /**
      * Return if user wanted to see list of error messages.
      */
-    bool GetShowErrorMessages() const {
+    bool getShowErrorMessages() const {
         return _showErrorMessages;
     }
 
     /**
      * Return the path names user gave to command line.
      */
-    const std::vector<std::string>& GetPathNames() const {
+    const std::vector<std::string>& getPathNames() const {
         return _pathnames;
     }
 
     /**
      * Return if help is shown to user.
      */
-    bool GetShowHelp() const {
+    bool getShowHelp() const {
         return _showHelp;
     }
 
     /**
      * Return if we should exit after printing version, help etc.
      */
-    bool ExitAfterPrinting() const {
+    bool exitAfterPrinting() const {
         return _exitAfterPrint;
     }
 
     /**
      * Return a list of paths user wants to ignore.
      */
-    const std::vector<std::string>& GetIgnoredPaths() const {
+    const std::vector<std::string>& getIgnoredPaths() const {
         return _ignoredPaths;
     }
 
@@ -98,12 +98,13 @@ protected:
     /**
      * Print help text to the console.
      */
-    static void PrintHelp();
+    static void printHelp();
 
     /**
      * Print message (to console?).
      */
-    static void PrintMessage(const std::string &message);
+    static void printMessage(const std::string &message);
+    static void printMessage(const char* message);
 
 private:
     std::vector<std::string> _pathnames;

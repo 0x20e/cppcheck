@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,18 +16,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+//---------------------------------------------------------------------------
 #ifndef checkH
 #define checkH
+//---------------------------------------------------------------------------
 
 #include "config.h"
+#include "errorlogger.h"
+#include "settings.h"
 #include "token.h"
 #include "tokenize.h"
-#include "settings.h"
-#include "errorlogger.h"
+#include "valueflow.h"
 
 #include <list>
-#include <iostream>
-#include <set>
+#include <string>
+
+namespace tinyxml2 {
+    class XMLElement;
+}
+
+/** Use WRONG_DATA in checkers to mark conditions that check that data is correct */
+#define WRONG_DATA(COND, TOK)  (wrongData((TOK), (COND), #COND))
 
 /// @addtogroup Core
 /// @{
@@ -43,44 +52,20 @@ public:
 
     /** This constructor is used when running checks. */
     Check(const std::string &aname, const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger)
-        : _tokenizer(tokenizer), _settings(settings), _errorLogger(errorLogger), _name(aname)
-    { }
+        : mTokenizer(tokenizer), mSettings(settings), mErrorLogger(errorLogger), mName(aname) {
+    }
 
     virtual ~Check() {
-#if !defined(DJGPP) && !defined(__sun)
-        instances().remove(this);
-#endif
+        if (!mTokenizer)
+            instances().remove(this);
     }
 
     /** List of registered check classes. This is used by Cppcheck to run checks and generate documentation */
-    static std::list<Check *> &instances() {
-        static std::list<Check *> _instances;
-        return _instances;
-    }
-
-    /**
-     * analyse code - must be thread safe
-     * @param tokens The tokens to analyse
-     * @param result container where results are stored
-     */
-    virtual void analyse(const Token *tokens, std::set<std::string> &result) const {
-        // suppress compiler warnings
-        (void)tokens;
-        (void)result;
-    }
-
-    /**
-     * Save analysis data - the caller ensures thread safety
-     * @param data The data where the results are saved
-     */
-    virtual void saveAnalysisData(const std::set<std::string> &data) const {
-        // suppress compiler warnings
-        (void)data;
-    }
+    static std::list<Check *> &instances();
 
     /** run checks, the token list is not simplified */
-    virtual void runChecks(const Tokenizer *, const Settings *, ErrorLogger *)
-    { }
+    virtual void runChecks(const Tokenizer *, const Settings *, ErrorLogger *) {
+    }
 
     /** run checks, the token list is simplified */
     virtual void runSimplifiedChecks(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger) = 0;
@@ -90,7 +75,7 @@ public:
 
     /** class name, used to generate documentation */
     const std::string& name() const {
-        return _name;
+        return mName;
     }
 
     /** get information about this class, used to generate documentation */
@@ -101,58 +86,109 @@ public:
      * This is for for printout out the error list with --errorlist
      * @param errmsg Error message to write
      */
-    static void reportError(const ErrorLogger::ErrorMessage &errmsg) {
-        std::cout << errmsg.toXML(true, 1) << std::endl;
+    static void reportError(const ErrorLogger::ErrorMessage &errmsg);
+
+    /** Base class used for whole-program analysis */
+    class FileInfo {
+    public:
+        FileInfo() {}
+        virtual ~FileInfo() {}
+        virtual std::string toString() const {
+            return std::string();
+        }
+    };
+
+    virtual FileInfo * getFileInfo(const Tokenizer *tokenizer, const Settings *settings) const {
+        (void)tokenizer;
+        (void)settings;
+        return nullptr;
     }
 
-    bool inconclusiveFlag() const {
-        return _settings && _settings->inconclusive;
+    virtual FileInfo * loadFileInfoFromXml(const tinyxml2::XMLElement *xmlElement) const {
+        (void)xmlElement;
+        return nullptr;
+    }
+
+    // Return true if an error is reported.
+    virtual bool analyseWholeProgram(const std::list<FileInfo*> &fileInfo, const Settings& settings, ErrorLogger &errorLogger) {
+        (void)fileInfo;
+        (void)settings;
+        (void)errorLogger;
+        return false;
     }
 
 protected:
-    const Tokenizer * const _tokenizer;
-    const Settings * const _settings;
-    ErrorLogger * const _errorLogger;
+    const Tokenizer * const mTokenizer;
+    const Settings * const mSettings;
+    ErrorLogger * const mErrorLogger;
 
     /** report an error */
-    void reportError(const Token *tok, const Severity::SeverityType severity, const std::string &id, const std::string &msg, bool inconclusive = false) {
-        std::list<const Token *> callstack(1, tok);
-        reportError(callstack, severity, id, msg, inconclusive);
+    template<typename T, typename U>
+    void reportError(const Token *tok, const Severity::SeverityType severity, const T id, const U msg) {
+        reportError(tok, severity, id, msg, CWE(0U), false);
     }
 
     /** report an error */
-    void reportError(const std::list<const Token *> &callstack, Severity::SeverityType severity, const std::string &id, const std::string& msg, bool inconclusive = false) {
-        ErrorLogger::ErrorMessage errmsg(callstack, _tokenizer?&_tokenizer->list:0, severity, id, msg, inconclusive);
-        if (_errorLogger)
-            _errorLogger->reportErr(errmsg);
+    template<typename T, typename U>
+    void reportError(const Token *tok, const Severity::SeverityType severity, const T id, const U msg, const CWE &cwe, bool inconclusive) {
+        const std::list<const Token *> callstack(1, tok);
+        reportError(callstack, severity, id, msg, cwe, inconclusive);
+    }
+
+    /** report an error */
+    template<typename T, typename U>
+    void reportError(const std::list<const Token *> &callstack, Severity::SeverityType severity, const T id, const U msg) {
+        reportError(callstack, severity, id, msg, CWE(0U), false);
+    }
+
+    /** report an error */
+    template<typename T, typename U>
+    void reportError(const std::list<const Token *> &callstack, Severity::SeverityType severity, const T id, const U msg, const CWE &cwe, bool inconclusive) {
+        const ErrorLogger::ErrorMessage errmsg(callstack, mTokenizer ? &mTokenizer->list : nullptr, severity, id, msg, cwe, inconclusive);
+        if (mErrorLogger)
+            mErrorLogger->reportErr(errmsg);
         else
             reportError(errmsg);
     }
 
+    void reportError(const ErrorPath &errorPath, Severity::SeverityType severity, const char id[], const std::string &msg, const CWE &cwe, bool inconclusive) {
+        const ErrorLogger::ErrorMessage errmsg(errorPath, mTokenizer ? &mTokenizer->list : nullptr, severity, id, msg, cwe, inconclusive);
+        if (mErrorLogger)
+            mErrorLogger->reportErr(errmsg);
+        else
+            reportError(errmsg);
+    }
+
+    ErrorPath getErrorPath(const Token *errtok, const ValueFlow::Value *value, const std::string &bug) const {
+        ErrorPath errorPath;
+        if (!value) {
+            errorPath.emplace_back(errtok,bug);
+        } else if (mSettings->verbose || mSettings->xml || !mSettings->templateLocation.empty()) {
+            errorPath = value->errorPath;
+            errorPath.emplace_back(errtok,bug);
+        } else {
+            if (value->condition)
+                errorPath.emplace_back(value->condition, "condition '" + value->condition->expressionString() + "'");
+            //else if (!value->isKnown() || value->defaultArg)
+            //    errorPath = value->callstack;
+            errorPath.emplace_back(errtok,bug);
+        }
+        return errorPath;
+    }
+
+    /**
+     * Use WRONG_DATA in checkers when you check for wrong data. That
+     * will call this method
+     */
+    bool wrongData(const Token *tok, bool condition, const char *str);
 private:
-    const std::string _name;
+    const std::string mName;
 
     /** disabled assignment operator and copy constructor */
-    void operator=(const Check &);
-    Check(const Check &);
+    void operator=(const Check &) = delete;
+    Check(const Check &) = delete;
 };
 
-namespace std {
-    /** compare the names of Check classes, used when sorting the Check descendants */
-    template <> struct less<Check *> {
-        bool operator()(const Check *p1, const Check *p2) const {
-            return (p1->name() < p2->name());
-        }
-    };
-}
-
-inline Check::Check(const std::string &aname)
-    : _tokenizer(0), _settings(0), _errorLogger(0), _name(aname)
-{
-    instances().push_back(this);
-    instances().sort(std::less<Check *>());
-}
-
 /// @}
-
-#endif
+//---------------------------------------------------------------------------
+#endif //  checkH

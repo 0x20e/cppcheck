@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,17 +16,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CPPCHECK_H
-#define CPPCHECK_H
+//---------------------------------------------------------------------------
+#ifndef cppcheckH
+#define cppcheckH
+//---------------------------------------------------------------------------
 
+#include "analyzerinfo.h"
+#include "check.h"
 #include "config.h"
-#include "settings.h"
 #include "errorlogger.h"
-#include "checkunusedfunctions.h"
+#include "importproject.h"
+#include "settings.h"
 
-#include <string>
-#include <list>
+#include <cstddef>
 #include <istream>
+#include <list>
+#include <map>
+#include <string>
+
+class Tokenizer;
 
 /// @addtogroup Core
 /// @{
@@ -64,6 +72,7 @@ public:
       *  settings()).
       */
     unsigned int check(const std::string &path);
+    unsigned int check(const ImportProject::FileSettings &fs);
 
     /**
       * @brief Check the file.
@@ -77,12 +86,6 @@ public:
       *  settings()).
       */
     unsigned int check(const std::string &path, const std::string &content);
-
-    /**
-     * @brief Check function usage.
-     * @note Call this after all files has been checked
-     */
-    void checkFunctionUsage();
 
     /**
      * @brief Get reference to current settings.
@@ -110,7 +113,7 @@ public:
      * @brief Terminate checking. The checking will be terminated as soon as possible.
      */
     void terminate() {
-        _settings.terminate();
+        mSettings.terminate();
     }
 
     /**
@@ -119,34 +122,65 @@ public:
      */
     void getErrorMessages();
 
-    /**
-     * @brief Analyse file - It's public so unit tests can be written
-     */
-    void analyseFile(std::istream &f, const std::string &filename);
-
-    /**
-     * @brief Get dependencies. Use this after calling 'check'.
-     */
-    const std::set<std::string>& dependencies() const {
-        return _dependencies;
-    }
-
     void tooManyConfigsError(const std::string &file, const std::size_t numberOfConfigurations);
+    void purgedConfigurationMessage(const std::string &file, const std::string& configuration);
 
     void dontSimplify() {
-        _simplify = false;
+        mSimplify = false;
     }
+
+    /** Analyse whole program, run this after all TUs has been scanned.
+     * This is deprecated and the plan is to remove this when
+     * .analyzeinfo is good enough.
+     * Return true if an error is reported.
+     */
+    bool analyseWholeProgram();
+
+    /** analyse whole program use .analyzeinfo files */
+    void analyseWholeProgram(const std::string &buildDir, const std::map<std::string, std::size_t> &files);
+
+    /** Check if the user wants to check for unused functions
+     * and if it's possible at all */
+    bool isUnusedFunctionCheckEnabled() const;
 
 private:
 
-    /** @brief There has been a internal error => Report information message */
+    /** @brief There has been an internal error => Report information message */
     void internalError(const std::string &filename, const std::string &msg);
 
-    /** @brief Process one file. */
-    unsigned int processFile(const std::string& filename);
+    /**
+     * @brief Check a file using stream
+     * @param filename file name
+     * @param cfgname  cfg name
+     * @param fileStream stream the file content can be read from
+     * @return number of errors found
+     */
+    unsigned int checkFile(const std::string& filename, const std::string &cfgname, std::istream& fileStream);
 
-    /** @brief Check file */
-    void checkFile(const std::string &code, const char FileName[]);
+    /**
+     * @brief Check raw tokens
+     * @param tokenizer tokenizer instance
+     */
+    void checkRawTokens(const Tokenizer &tokenizer);
+
+    /**
+     * @brief Check normal tokens
+     * @param tokenizer tokenizer instance
+     */
+    void checkNormalTokens(const Tokenizer &tokenizer);
+
+    /**
+     * @brief Check simplified tokens
+     * @param tokenizer tokenizer instance
+     */
+    void checkSimplifiedTokens(const Tokenizer &tokenizer);
+
+    /**
+     * @brief Execute rules, if any
+     * @param tokenlist token list to use (normal / simple)
+     * @param tokenizer tokenizer
+     */
+    void executeRules(const std::string &tokenlist, const Tokenizer &tokenizer);
 
     /**
      * @brief Errors and warnings are directed here.
@@ -155,57 +189,46 @@ private:
      * "[filepath:line number] Message", e.g.
      * "[main.cpp:4] Uninitialized member variable"
      */
-    virtual void reportErr(const ErrorLogger::ErrorMessage &msg);
+    virtual void reportErr(const ErrorLogger::ErrorMessage &msg) override;
 
     /**
      * @brief Information about progress is directed here.
      *
      * @param outmsg Message to show, e.g. "Checking main.cpp..."
      */
-    virtual void reportOut(const std::string &outmsg);
+    virtual void reportOut(const std::string &outmsg) override;
 
-    /**
-     * @brief Check given code. If error is found, return true
-     * and print out source of the file. Try to reduce the code
-     * while still showing the error.
-     */
-    bool findError(std::string code, const char FileName[]);
+    std::list<std::string> mErrorList;
+    Settings mSettings;
 
-    /**
-     * @brief Replace "from" strings with "to" strings in "code"
-     * and return it.
-     */
-    static void replaceAll(std::string& code, const std::string &from, const std::string &to);
-
-    std::list<std::string> _errorList;
-    Settings _settings;
-    std::string _fileContent;
-    std::set<std::string> _dependencies;
-
-    void reportProgress(const std::string &filename, const char stage[], const std::size_t value);
+    void reportProgress(const std::string &filename, const char stage[], const std::size_t value) override;
 
     /**
      * Output information messages.
      */
-    virtual void reportInfo(const ErrorLogger::ErrorMessage &msg);
+    virtual void reportInfo(const ErrorLogger::ErrorMessage &msg) override;
 
-    CheckUnusedFunctions _checkUnusedFunctions;
-    ErrorLogger &_errorLogger;
+    ErrorLogger &mErrorLogger;
 
     /** @brief Current preprocessor configuration */
-    std::string cfg;
+    std::string mCurrentConfig;
 
-    unsigned int exitcode;
+    unsigned int mExitCode;
 
-    bool _useGlobalSuppressions;
+    bool mUseGlobalSuppressions;
 
     /** Are there too many configs? */
-    bool tooManyConfigs;
+    bool mTooManyConfigs;
 
     /** Simplify code? true by default */
-    bool _simplify;
+    bool mSimplify;
+
+    /** File info used for whole program analysis */
+    std::list<Check::FileInfo*> mFileInfo;
+
+    AnalyzerInformation mAnalyzerInformation;
 };
 
 /// @}
-
-#endif // CPPCHECK_H
+//---------------------------------------------------------------------------
+#endif // cppcheckH

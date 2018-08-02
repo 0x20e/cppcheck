@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,21 +16,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+//---------------------------------------------------------------------------
+#ifndef checkunusedvarH
+#define checkunusedvarH
+//---------------------------------------------------------------------------
 
-//---------------------------------------------------------------------------
-#ifndef CheckUnusedVarH
-#define CheckUnusedVarH
-//---------------------------------------------------------------------------
+#include "check.h"
+#include "config.h"
 
 #include <map>
+#include <string>
 
-#include "config.h"
-#include "check.h"
-#include "settings.h"
-
-class Type;
-class Token;
+class ErrorLogger;
 class Scope;
+class Settings;
+class Token;
+class Tokenizer;
+class Type;
 class Variables;
 
 /// @addtogroup Checks
@@ -42,16 +44,16 @@ class Variables;
 class CPPCHECKLIB CheckUnusedVar : public Check {
 public:
     /** @brief This constructor is used when registering the CheckClass */
-    CheckUnusedVar() : Check(myName())
-    { }
+    CheckUnusedVar() : Check(myName()) {
+    }
 
     /** @brief This constructor is used when running checks. */
     CheckUnusedVar(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger)
-        : Check(myName(), tokenizer, settings, errorLogger)
-    { }
+        : Check(myName(), tokenizer, settings, errorLogger) {
+    }
 
     /** @brief Run checks against the normal token list */
-    void runChecks(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger) {
+    void runChecks(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger) override {
         CheckUnusedVar checkUnusedVar(tokenizer, settings, errorLogger);
 
         // Coding style checks
@@ -60,7 +62,7 @@ public:
     }
 
     /** @brief Run checks against the simplified token list */
-    void runSimplifiedChecks(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger) {
+    void runSimplifiedChecks(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger) override {
         (void)tokenizer;
         (void)settings;
         (void)errorLogger;
@@ -68,7 +70,6 @@ public:
 
     /** @brief %Check for unused function variables */
     void checkFunctionVariableUsage_iterateScopes(const Scope* const scope, Variables& variables, bool insideLoop);
-    void checkVariableUsage(const Scope* const scope, const Token* start, Variables& variables);
     void checkFunctionVariableUsage();
 
     /** @brief %Check that all struct members are used */
@@ -76,42 +77,46 @@ public:
 
 private:
     bool isRecordTypeWithoutSideEffects(const Type* type);
+    bool isEmptyType(const Type* type);
 
     // Error messages..
-    void unusedStructMemberError(const Token *tok, const std::string &structname, const std::string &varname);
+    void unusedStructMemberError(const Token *tok, const std::string &structname, const std::string &varname, bool isUnion = false);
     void unusedVariableError(const Token *tok, const std::string &varname);
     void allocatedButUnusedVariableError(const Token *tok, const std::string &varname);
-    void unreadVariableError(const Token *tok, const std::string &varname);
+    void unreadVariableError(const Token *tok, const std::string &varname, bool modified);
     void unassignedVariableError(const Token *tok, const std::string &varname);
 
-    void getErrorMessages(ErrorLogger *errorLogger, const Settings *settings) const {
-        CheckUnusedVar c(0, settings, errorLogger);
+    void getErrorMessages(ErrorLogger *errorLogger, const Settings *settings) const override {
+        CheckUnusedVar c(nullptr, settings, errorLogger);
 
         // style/warning
-        c.unusedVariableError(0, "varname");
-        c.allocatedButUnusedVariableError(0, "varname");
-        c.unreadVariableError(0, "varname");
-        c.unassignedVariableError(0, "varname");
-        c.unusedStructMemberError(0, "structname", "variable");
+        c.unusedVariableError(nullptr, "varname");
+        c.allocatedButUnusedVariableError(nullptr, "varname");
+        c.unreadVariableError(nullptr, "varname", false);
+        c.unassignedVariableError(nullptr, "varname");
+        c.unusedStructMemberError(nullptr, "structname", "variable");
     }
 
     static std::string myName() {
         return "UnusedVar";
     }
 
-    std::string classInfo() const {
+    std::string classInfo() const override {
         return "UnusedVar checks\n"
 
                // style
-               "* unused variable\n"
-               "* allocated but unused variable\n"
-               "* unred variable\n"
-               "* unassigned variable\n"
-               "* unused struct member\n";
+               "- unused variable\n"
+               "- allocated but unused variable\n"
+               "- unred variable\n"
+               "- unassigned variable\n"
+               "- unused struct member\n";
     }
 
-    std::map<const Type *,bool> isRecordTypeWithoutSideEffectsMap;
+    std::map<const Type *,bool> mIsRecordTypeWithoutSideEffectsMap;
+
+    std::map<const Type *,bool> mIsEmptyTypeMap;
+
 };
 /// @}
 //---------------------------------------------------------------------------
-#endif
+#endif // checkunusedvarH

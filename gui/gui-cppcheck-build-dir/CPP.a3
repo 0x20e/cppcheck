@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<analyzerinfo checksum="1855401706">
+        <error id="syntaxError" severity="error" msg="syntax error" verbose="syntax error">
+            <location file0="C:\Users\user\Desktop\CPP\CPP\CPP.cpp" file="C:\Users\user\Desktop\CPP\CPP\CPP.cpp" line="3"/>
+        </error>
+</analyzerinfo>

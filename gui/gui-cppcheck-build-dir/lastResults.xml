@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<results version="2">
+    <cppcheck version="1.84"/>
+    <errors>
+        <error id="syntaxError" severity="error" msg="The code contains unhandled character(s) (character code=255). Neither unicode nor extended ascii is supported." verbose="The code contains unhandled character(s) (character code=255). Neither unicode nor extended ascii is supported." sinceDate="01/08/2018">
+            <location file="..\..\ConsoleApplication1\ConsoleApplication1\ConsoleApplication1.cpp" line="1"/>
+        </error>
+        <error id="syntaxError" severity="error" msg="The code contains unhandled character(s) (character code=255). Neither unicode nor extended ascii is supported." verbose="The code contains unhandled character(s) (character code=255). Neither unicode nor extended ascii is supported." sinceDate="01/08/2018">
+            <location file="..\..\ConsoleApplication1\ConsoleApplication1\stdafx.cpp" line="1"/>
+        </error>
+    </errors>
+</results>

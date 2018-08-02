@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,9 +20,12 @@
 #ifndef testsuiteH
 #define testsuiteH
 
-#include <sstream>
+#include "config.h"
 #include "errorlogger.h"
-#include "redirect.h"
+
+#include <cstddef>
+#include <set>
+#include <sstream>
 
 class options;
 
@@ -33,50 +36,74 @@ private:
     static std::size_t fails_counter;
     static std::size_t todos_counter;
     static std::size_t succeeded_todos_counter;
+    static std::set<std::string> missingLibs;
+    bool mVerbose;
 
 protected:
-    std::string classname;
     std::string testToRun;
-    bool gcc_style_errors;
     bool quiet_tests;
-    std::string currentTest;
 
     virtual void run() = 0;
 
-    bool runTest(const char testname[]);
+    bool prepareTest(const char testname[]);
 
-    void assert_(const char *filename, unsigned int linenr, bool condition) const;
+    void assert_(const char * const filename, const unsigned int linenr, const bool condition) const;
 
-    void assertEquals(const char *filename, unsigned int linenr, const std::string &expected, const std::string &actual, const std::string &msg = "") const;
-    void assertEquals(const char *filename, unsigned int linenr, long long expected, long long actual, const std::string &msg="") const;
-    void assertEqualsDouble(const char *filename, unsigned int linenr, double expected, double actual, const std::string &msg="") const;
+    void assertEquals(const char * const filename, const unsigned int linenr, const std::string &expected, const std::string &actual, const std::string &msg = emptyString) const;
+    void assertEqualsWithoutLineNumbers(const char * const filename, const unsigned int linenr, const std::string &expected, const std::string &actual, const std::string &msg = emptyString) const;
+    void assertEquals(const char * const filename, const unsigned int linenr, const char expected[], const std::string& actual, const std::string &msg = emptyString) const;
+    void assertEquals(const char * const filename, const unsigned int linenr, const char expected[], const char actual[], const std::string &msg = emptyString) const;
+    void assertEquals(const char * const filename, const unsigned int linenr, const std::string& expected, const char actual[], const std::string &msg = emptyString) const;
+    void assertEquals(const char * const filename, const unsigned int linenr, const long long expected, const long long actual, const std::string &msg = emptyString) const;
+    void assertEqualsDouble(const char * const filename, const unsigned int linenr, const double expected, const double actual, const double tolerance, const std::string &msg = emptyString) const;
 
-    void todoAssertEquals(const char *filename, unsigned int linenr, const std::string &wanted,
+    void todoAssertEquals(const char * const filename, const unsigned int linenr, const std::string &wanted,
                           const std::string &current, const std::string &actual) const;
-    void todoAssertEquals(const char *filename, unsigned int linenr, long long wanted,
-                          long long current, long long actual) const;
-    void assertThrowFail(const char *filename, unsigned int linenr) const;
+    void todoAssertEquals(const char * const filename, const unsigned int linenr, const long long wanted,
+                          const long long current, const long long actual) const;
+    void assertThrow(const char * const filename, const unsigned int linenr) const;
+    void assertThrowFail(const char * const filename, const unsigned int linenr) const;
+    void assertNoThrowFail(const char * const filename, const unsigned int linenr) const;
+    void complainMissingLib(const char * const libname) const;
+    std::string deleteLineNumber(const std::string &message) const;
+
+    void setVerbose(bool v) {
+        mVerbose = v;
+    }
+
     void processOptions(const options& args);
 public:
-    virtual void reportOut(const std::string &outmsg);
-    virtual void reportErr(const ErrorLogger::ErrorMessage &msg);
+    virtual void reportOut(const std::string &outmsg) override;
+    virtual void reportErr(const ErrorLogger::ErrorMessage &msg) override;
     void run(const std::string &str);
-    void warn(const char msg[]);
+    const std::string classname;
 
-    TestFixture(const std::string &_name);
+    explicit TestFixture(const char * const _name);
     virtual ~TestFixture() { }
 
-    static void printTests();
     static std::size_t runTests(const options& args);
 };
 
-#define TEST_CASE( NAME )  if ( runTest(#NAME) ) { currentTest = classname + "::" + #NAME; if (quiet_tests) { REDIRECT; NAME(); } else { NAME ();} }
+extern std::ostringstream errout;
+extern std::ostringstream output;
+
+#define TEST_CASE( NAME )  if ( prepareTest(#NAME) ) { setVerbose(false); NAME(); }
 #define ASSERT( CONDITION )  assert_(__FILE__, __LINE__, CONDITION)
 #define ASSERT_EQUALS( EXPECTED , ACTUAL )  assertEquals(__FILE__, __LINE__, EXPECTED, ACTUAL)
-#define ASSERT_EQUALS_DOUBLE( EXPECTED , ACTUAL )  assertEqualsDouble(__FILE__, __LINE__, EXPECTED, ACTUAL)
+#define ASSERT_EQUALS_WITHOUT_LINENUMBERS( EXPECTED , ACTUAL )  assertEqualsWithoutLineNumbers(__FILE__, __LINE__, EXPECTED, ACTUAL)
+#define ASSERT_EQUALS_DOUBLE( EXPECTED , ACTUAL, TOLERANCE )  assertEqualsDouble(__FILE__, __LINE__, EXPECTED, ACTUAL, TOLERANCE)
 #define ASSERT_EQUALS_MSG( EXPECTED , ACTUAL, MSG )  assertEquals(__FILE__, __LINE__, EXPECTED, ACTUAL, MSG)
-#define ASSERT_THROW( CMD, EXCEPTION ) try { CMD ; assertThrowFail(__FILE__, __LINE__); } catch (EXCEPTION &) { } catch (...) { assertThrowFail(__FILE__, __LINE__); }
+#define ASSERT_THROW( CMD, EXCEPTION ) try { CMD ; assertThrowFail(__FILE__, __LINE__); } catch (const EXCEPTION&) { } catch (...) { assertThrowFail(__FILE__, __LINE__); }
+#define ASSERT_NO_THROW( CMD ) try { CMD ; } catch (...) { assertNoThrowFail(__FILE__, __LINE__); }
+#define TODO_ASSERT_THROW( CMD, EXCEPTION ) try { CMD ; } catch (const EXCEPTION&) { } catch (...) { assertThrow(__FILE__, __LINE__); }
+#define TODO_ASSERT( CONDITION ) { bool condition=CONDITION; todoAssertEquals(__FILE__, __LINE__, true, false, condition); }
 #define TODO_ASSERT_EQUALS( WANTED , CURRENT , ACTUAL ) todoAssertEquals(__FILE__, __LINE__, WANTED, CURRENT, ACTUAL)
-#define REGISTER_TEST( CLASSNAME ) namespace { CLASSNAME instance; }
+#define REGISTER_TEST( CLASSNAME ) namespace { CLASSNAME instance_##CLASSNAME; }
+
+#ifdef _WIN32
+#define LOAD_LIB_2( LIB, NAME ) { if (((LIB).load("./testrunner", "../cfg/" NAME).errorcode != Library::OK) && ((LIB).load("./testrunner", "cfg/" NAME).errorcode != Library::OK)) { complainMissingLib(NAME); return; } }
+#else
+#define LOAD_LIB_2( LIB, NAME ) { if (((LIB).load("./testrunner", "cfg/" NAME).errorcode != Library::OK) && ((LIB).load("./bin/testrunner", "bin/cfg/" NAME).errorcode != Library::OK)) { complainMissingLib(NAME); return; } }
+#endif
 
 #endif

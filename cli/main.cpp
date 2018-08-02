@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,15 +20,25 @@
 /**
  *
  * @mainpage Cppcheck
- * @version 1.59
+ * @version 1.84.99
  *
  * @section overview_sec Overview
  * Cppcheck is a simple tool for static analysis of C/C++ code.
  *
- * The method used is to first tokenize the source code and then analyse the token list.
- * In the token list, the tokens are stored in plain text.
+ * When you write a checker you have access to:
+ *  - %Token list - the tokenized code
+ *  - Syntax tree - Syntax tree of each expression
+ *  - %SymbolDatabase - Information about all types/variables/functions/etc
+ *    in the current translation unit
+ *  - Library - Configuration of functions/types
+ *  - Value flow analysis - Context sensitive analysis that determine possible values for each token
  *
- * The checks are written in C++. The checks are addons that can be easily added/removed.
+ * Use --debug on the command line to see debug output for the token list
+ * and the syntax tree. If both --debug and --verbose is used, the symbol
+ * database is also written.
+ *
+ * The checks are written in C++. The checks are addons that can be
+ * easily added/removed.
  *
  * @section writing_checks_sec Writing a check
  * Below is a simple example of a check that detect division with zero:
@@ -38,15 +48,23 @@ void CheckOther::checkZeroDivision()
     // Iterate through all tokens in the token list
     for (const Token *tok = _tokenizer->tokens(); tok; tok = tok->next())
     {
-        if (Token::Match(tok, "/ 0"))
-            reportError(tok, Severity::error, "zerodiv", "Division by zero");
+        // is this a division or modulo?
+        if (Token::Match(tok, "[/%]")) {
+            // try to get value '0' of rhs
+            const ValueFlow::Value *value = tok->astOperand2()->getValue(0);
+
+            // if 'value' is not NULL, rhs can be zero.
+            if (value)
+                reportError(tok, Severity::error, "zerodiv", "Division by zero");
+        }
     }
 }
  @endcode
  *
  * The function Token::Match is often used in the checks. Through it
- * you can match tokens against patterns.
- *
+ * you can match tokens against patterns. It is currently not possible
+ * to write match expressions that uses the syntax tree, the symbol database,
+ * nor the library. Only the token list is used.
  *
  * @section checkclass_sec Creating a new check class from scratch
  * %Check classes inherit from the Check class. The Check class specifies the interface that you must use.
@@ -75,7 +93,7 @@ void CheckOther::checkZeroDivision()
  *   - Macros are expanded
  * -# Tokenize the file (see Tokenizer)
  * -# Run the runChecks of all check classes.
- * -# Simplify the tokenlist (Tokenizer::simplifyTokenList)
+ * -# Simplify the tokenlist (Tokenizer::simplifyTokenList2)
  * -# Run the runSimplifiedChecks of all check classes
  *
  * When errors are found, they are reported back to the CppCheckExecutor through the ErrorLogger interface
@@ -83,6 +101,14 @@ void CheckOther::checkZeroDivision()
 
 
 #include "cppcheckexecutor.h"
+
+#include <iostream>
+
+#ifdef _WIN32
+#include <windows.h>
+
+static char exename[1024] = {0};
+#endif
 
 /**
  * Main function of cppcheck
@@ -93,6 +119,45 @@ void CheckOther::checkZeroDivision()
  */
 int main(int argc, char* argv[])
 {
+    // MS Visual C++ memory leak debug tracing
+#if defined(_MSC_VER) && defined(_DEBUG)
+    _CrtSetDbgFlag(_CrtSetDbgFlag(_CRTDBG_REPORT_FLAG) | _CRTDBG_LEAK_CHECK_DF);
+#endif
+
     CppCheckExecutor exec;
-    return exec.check(argc, argv);
+#ifdef _WIN32
+    GetModuleFileNameA(nullptr, exename, sizeof(exename)/sizeof(exename[0])-1);
+    argv[0] = exename;
+#endif
+
+#ifdef NDEBUG
+    try {
+#endif
+        return exec.check(argc, argv);
+#ifdef NDEBUG
+    } catch (const InternalError& e) {
+        std::cout << e.errorMessage << std::endl;
+    } catch (const std::exception& error) {
+        std::cout << error.what() << std::endl;
+    } catch (...) {
+        std::cout << "Unknown exception" << std::endl;
+    }
+    return EXIT_FAILURE;
+#endif
 }
+
+
+// Warn about deprecated compilers
+#ifdef __clang__
+#   if ( __clang_major__ < 2 || ( __clang_major__  == 2 && __clang_minor__ < 9))
+#       warning "Using Clang 2.8 or earlier. Support for this version has been removed."
+#   endif
+#elif defined(__GNUC__)
+#   if (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 6))
+#       warning "Using GCC 4.5 or earlier. Support for this version has been removed."
+#   endif
+#elif defined(_MSC_VER)
+#   if (_MSC_VER < 1800)
+#       pragma message("WARNING: Using Visual Studio 2012 or earlier. Support for this version has been removed.")
+#   endif
+#endif

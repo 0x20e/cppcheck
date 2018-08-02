@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,30 +35,30 @@ class TxtReport : public Report {
     Q_OBJECT
 
 public:
-    TxtReport(const QString &filename);
+    explicit TxtReport(const QString &filename);
     virtual ~TxtReport();
 
     /**
     * @brief Create the report (file).
     * @return true if succeeded, false if file could not be created.
     */
-    virtual bool Create();
+    virtual bool create() override;
 
     /**
     * @brief Write report header.
     */
-    virtual void WriteHeader();
+    virtual void writeHeader() override;
 
     /**
     * @brief Write report footer.
     */
-    virtual void WriteFooter();
+    virtual void writeFooter() override;
 
     /**
     * @brief Write error to report.
     * @param error Error data.
     */
-    virtual void WriteError(const ErrorItem &error);
+    virtual void writeError(const ErrorItem &error) override;
 
 private:
 

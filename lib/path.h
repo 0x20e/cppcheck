@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2017 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,12 +16,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PATH_H_INCLUDED
-#define PATH_H_INCLUDED
+//---------------------------------------------------------------------------
+#ifndef pathH
+#define pathH
+//---------------------------------------------------------------------------
 
+#include "config.h"
+
+#include <set>
 #include <string>
 #include <vector>
-#include "config.h"
 
 /// @addtogroup Core
 /// @{
@@ -54,7 +58,7 @@ public:
      * @param originalPath path to be simplified, must have / -separators.
      * @return simplified path
      */
-    static std::string simplifyPath(const char *originalPath);
+    static std::string simplifyPath(std::string originalPath);
 
     /**
      * @brief Lookup the path part from a filename (e.g., '/tmp/a.h' -> '/tmp/', 'a.h' -> '')
@@ -94,6 +98,19 @@ public:
     static std::string getFilenameExtensionInLowerCase(const std::string &path);
 
     /**
+     * @brief Returns the absolute path of current working directory
+     * @return absolute path of current working directory
+     */
+    static std::string getCurrentPath();
+
+    /**
+     * @brief Check if given path is absolute
+     * @param path Path to check
+     * @return true if given path is absolute
+     */
+    static bool isAbsolute(const std::string& path);
+
+    /**
       * @brief Create a relative path from an absolute one, if absolute path is inside the basePaths.
       * @param absolutePath Path to be made relative.
       * @param basePaths Paths to which it may be made relative.
@@ -102,12 +119,31 @@ public:
     static std::string getRelativePath(const std::string& absolutePath, const std::vector<std::string>& basePaths);
 
     /**
+      * @brief Get an absolute file path from a relative one.
+      * @param filePath File path to be made absolute.
+      * @return absolute path, if possible. Otherwise an empty path is returned
+      */
+    static std::string getAbsoluteFilePath(const std::string& filePath);
+
+    /**
+     * @brief Check if the file extension indicates that it's a C/C++ source file.
+     * Check if the file has source file extension: *.c;*.cpp;*.cxx;*.c++;*.cc;*.txx
+     * @param filename filename to check. path info is optional
+     * @return true if the file extension indicates it should be checked
+     */
+    static bool acceptFile(const std::string &filename) {
+        const std::set<std::string> extra;
+        return acceptFile(filename, extra);
+    }
+
+    /**
      * @brief Check if the file extension indicates that it's a C/C++ source file.
      * Check if the file has source file extension: *.c;*.cpp;*.cxx;*.c++;*.cc;*.txx
      * @param path filename to check. path info is optional
-     * @return returns true if the file extension indicates it should be checked
+     * @param extra    extra file extensions
+     * @return true if the file extension indicates it should be checked
      */
-    static bool acceptFile(const std::string &filename);
+    static bool acceptFile(const std::string &path, const std::set<std::string> &extra);
 
     /**
      * @brief Identify language based on file extension.
@@ -121,17 +157,23 @@ public:
      * @param path filename to check. path info is optional
      * @return true if extension is meant for C++ files
      */
-    static bool isCPP(const std::string &extensionInLowerCase);
+    static bool isCPP(const std::string &path);
 
-private:
     /**
      * @brief Is filename a header based on file extension
      * @param path filename to check. path info is optional
      * @return true if filename extension is meant for headers
      */
     static bool isHeader(const std::string &path);
+
+    /**
+     * @brief Get filename without a directory path part.
+     * @param file filename to be stripped. path info is optional
+     * @return filename without directory path part.
+     */
+    static std::string stripDirectoryPart(const std::string &file);
 };
 
 /// @}
-
-#endif // PATH_H_INCLUDED
+//---------------------------------------------------------------------------
+#endif // pathH

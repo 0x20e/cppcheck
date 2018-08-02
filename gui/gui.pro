@@ -1,21 +1,34 @@
+lessThan(QT_MAJOR_VERSION, 5): error(requires >= Qt 5 (You used: $$QT_VERSION))
+
 TEMPLATE = app
 TARGET = cppcheck-gui
-CONFIG += warn_on
+CONFIG += warn_on debug
 DEPENDPATH += . \
     ../lib
 INCLUDEPATH += . \
     ../lib
+QT += widgets
+QT += printsupport
+
 contains(LINKCORE, [yY][eE][sS]) {
     LIBS += -l../bin/cppcheck-core
     DEFINES += CPPCHECKLIB_IMPORT
 }
-LIBS += -L../externals
+LIBS += -L$$PWD/../externals
 
 DESTDIR = .
 RCC_DIR = temp
 MOC_DIR = temp
 OBJECTS_DIR = temp
 UI_DIR = temp
+
+isEmpty(QMAKE_CXX) {
+    isEmpty(CXX)) {
+        QMAKE_CXX = gcc
+    } else {
+        QMAKE_CXX = $$(CXX)
+    }
+}
 
 win32 {
    CONFIG += windows
@@ -38,13 +51,16 @@ RESOURCES = gui.qrc
 FORMS = about.ui \
         application.ui \
         file.ui \
-        logview.ui \
-        main.ui \
-        projectfile.ui \
+        mainwindow.ui \
+        projectfiledialog.ui \
         resultsview.ui \
         scratchpad.ui \
         settings.ui \
-        stats.ui
+        stats.ui \
+        librarydialog.ui \
+        libraryaddfunctiondialog.ui \
+        libraryeditargdialog.ui \
+        newsuppressiondialog.ui
 
 TRANSLATIONS =  cppcheck_de.ts \
                 cppcheck_es.ts \
@@ -74,15 +90,15 @@ HEADERS += aboutdialog.h \
            applicationlist.h \
            checkstatistics.h \
            checkthread.h \
+           codeeditor.h \
            common.h \
            csvreport.h \
            erroritem.h \
            filelist.h \
            fileviewdialog.h \
-           logview.h \
            mainwindow.h \
            platforms.h \
-           project.h \
+           printablereport.h \
            projectfile.h \
            projectfiledialog.h \
            report.h \
@@ -97,8 +113,12 @@ HEADERS += aboutdialog.h \
            translationhandler.h \
            txtreport.h \
            xmlreport.h \
-           xmlreportv1.h \
-           xmlreportv2.h
+           xmlreportv2.h \
+           librarydialog.h \
+           cppchecklibrarydata.h \
+           libraryaddfunctiondialog.h \
+           libraryeditargdialog.h \
+           newsuppressiondialog.h
 
 SOURCES += aboutdialog.cpp \
            application.cpp \
@@ -106,16 +126,16 @@ SOURCES += aboutdialog.cpp \
            applicationlist.cpp \
            checkstatistics.cpp \
            checkthread.cpp \
+           codeeditor.cpp \
            common.cpp \
            csvreport.cpp \
            erroritem.cpp \
            filelist.cpp \
            fileviewdialog.cpp \
-           logview.cpp \
            main.cpp \
            mainwindow.cpp\
            platforms.cpp \
-           project.cpp \
+           printablereport.cpp \
            projectfile.cpp \
            projectfiledialog.cpp \
            report.cpp \
@@ -130,12 +150,34 @@ SOURCES += aboutdialog.cpp \
            translationhandler.cpp \
            txtreport.cpp \
            xmlreport.cpp \
-           xmlreportv1.cpp \
-           xmlreportv2.cpp
+           xmlreportv2.cpp \
+           librarydialog.cpp \
+           cppchecklibrarydata.cpp \
+           libraryaddfunctiondialog.cpp \
+           libraryeditargdialog.cpp \
+           newsuppressiondialog.cpp
 
 win32 {
-    DEFINES += _CRT_SECURE_NO_WARNINGS
     RC_FILE = cppcheck-gui.rc
     HEADERS += ../lib/version.h
-    LIBS += -lshlwapi
+    contains(LINKCORE, [yY][eE][sS]) {
+    } else {
+        LIBS += -lshlwapi
+    }
 }
+
+contains(QMAKE_CC, gcc) {
+    QMAKE_CXXFLAGS += -std=c++0x -Wno-missing-field-initializers -Wno-missing-braces -Wno-sign-compare
+}
+
+contains(QMAKE_CXX, clang++) {
+    QMAKE_CXXFLAGS += -std=c++11
+}
+
+contains(HAVE_QCHART, [yY][eE][sS]) {
+    QT += charts
+    DEFINES += HAVE_QCHART
+} else {
+    message("Charts disabled - to enable it pass HAVE_QCHART=yes to qmake.")
+}
+

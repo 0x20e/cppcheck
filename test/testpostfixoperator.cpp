@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,58 +17,48 @@
  */
 
 
-#include "tokenize.h"
 #include "checkpostfixoperator.h"
+#include "settings.h"
 #include "testsuite.h"
+#include "tokenize.h"
 
-#include <sstream>
-
-extern std::ostringstream errout;
 
 class TestPostfixOperator : public TestFixture {
 public:
-    TestPostfixOperator() : TestFixture("TestPostfixOperator")
-    { }
+    TestPostfixOperator() : TestFixture("TestPostfixOperator") {
+    }
 
 private:
-
+    Settings settings;
 
 
     void check(const char code[]) {
         // Clear the error buffer..
         errout.str("");
 
-        Settings settings;
-        settings.addEnabled("performance");
-        //settings.inconclusive = true;
-
         // Tokenize..
         Tokenizer tokenizer(&settings, this);
         std::istringstream istr(code);
         tokenizer.tokenize(istr, "test.cpp");
-        tokenizer.simplifyTokenList();
 
         // Check for postfix operators..
         CheckPostfixOperator checkPostfixOperator(&tokenizer, &settings, this);
         checkPostfixOperator.postfixOperator();
     }
 
-    void run() {
+    void run() override {
+        settings.addEnabled("performance");
+
         TEST_CASE(testsimple);
         TEST_CASE(testfor);
         TEST_CASE(testvolatile);
         TEST_CASE(testiterator);
         TEST_CASE(test2168);
         TEST_CASE(pointer);   // #2321 - postincrement of pointer is OK
-        TEST_CASE(testHangWithInvalidCode); // #2847 - cppcheck hangs with 100% cpu load
         TEST_CASE(testtemplate); // #4686
         TEST_CASE(testmember);
         TEST_CASE(testcomma);
-    }
-
-    void testHangWithInvalidCode() {
-        check("a,b--\n");
-        ASSERT_EQUALS("", errout.str());
+        TEST_CASE(testauto); // #8350
     }
 
     void testsimple() {
@@ -248,8 +238,7 @@ private:
               "    std::cout << k << std::endl;\n"
               "    return 0;\n"
               "}");
-        TODO_ASSERT_EQUALS("",
-                           "[test.cpp:6]: (performance) Prefer prefix ++/-- operators for non-primitive types.\n", errout.str());
+        ASSERT_EQUALS("[test.cpp:6]: (performance) Prefer prefix ++/-- operators for non-primitive types.\n", errout.str());
     }
 
     void testiterator() {
@@ -359,6 +348,18 @@ private:
               "    A a;\n"
               "    foo(i, a++);\n"
               "    foo(a++, i);\n"
+              "}");
+        ASSERT_EQUALS("", errout.str());
+    }
+
+    void testauto() { // #8350
+        check("enum class Color { Red = 0, Green = 1, };\n"
+              "int fun(const Color color) {\n"
+              "    auto a = 0;\n"
+              "    for (auto i = static_cast<int>(color); i < 10; i++) {\n"
+              "        a += i;\n"
+              "    }\n"
+              "    return a;\n"
               "}");
         ASSERT_EQUALS("", errout.str());
     }

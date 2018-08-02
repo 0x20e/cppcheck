@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,65 +22,92 @@
 #define checkunusedfunctionsH
 //---------------------------------------------------------------------------
 
-#include "config.h"
 #include "check.h"
-#include "tokenize.h"
-#include "errorlogger.h"
+#include "config.h"
+
+#include <list>
+#include <map>
+#include <set>
+#include <string>
+
+class ErrorLogger;
+class Function;
+class Settings;
+class Tokenizer;
 
 /// @addtogroup Checks
+/** @brief Check for functions never called */
 /// @{
 
-class CPPCHECKLIB CheckUnusedFunctions: public Check {
+class CPPCHECKLIB CheckUnusedFunctions : public Check {
 public:
     /** @brief This constructor is used when registering the CheckUnusedFunctions */
-    CheckUnusedFunctions() : Check(myName())
-    { }
+    CheckUnusedFunctions() : Check(myName()) {
+    }
 
     /** @brief This constructor is used when running checks. */
     CheckUnusedFunctions(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger)
-        : Check(myName(), tokenizer, settings, errorLogger)
-    { }
+        : Check(myName(), tokenizer, settings, errorLogger) {
+    }
+
+    static void clear() {
+        instance.mFunctions.clear();
+        instance.mFunctionCalls.clear();
+    }
 
     // Parse current tokens and determine..
     // * Check what functions are used
     // * What functions are declared
-    void parseTokens(const Tokenizer &tokenizer);
+    void parseTokens(const Tokenizer &tokenizer, const char FileName[], const Settings *settings);
 
-    void check(ErrorLogger * const errorLogger);
+    // Return true if an error is reported.
+    bool check(ErrorLogger * const errorLogger, const Settings& settings);
+
+    /** @brief Parse current TU and extract file info */
+    Check::FileInfo *getFileInfo(const Tokenizer *tokenizer, const Settings *settings) const override;
+
+    /** @brief Analyse all file infos for all TU */
+    bool analyseWholeProgram(const std::list<Check::FileInfo*> &fileInfo, const Settings& settings, ErrorLogger &errorLogger) override;
+
+    static CheckUnusedFunctions instance;
+
+    std::string analyzerInfo() const;
+
+    /** @brief Combine and analyze all analyzerInfos for all TUs */
+    static void analyseWholeProgram(ErrorLogger * const errorLogger, const std::string &buildDir);
 
 private:
 
-    void getErrorMessages(ErrorLogger *errorLogger, const Settings *settings) const {
-        CheckUnusedFunctions c(0, settings, errorLogger);
-        c.unusedFunctionError(errorLogger, "", 0, "funcName");
+    void getErrorMessages(ErrorLogger *errorLogger, const Settings *settings) const override {
+        CheckUnusedFunctions c(nullptr, settings, errorLogger);
+        c.unusedFunctionError(errorLogger, emptyString, 0, "funcName");
     }
 
     /**
      * Dummy implementation, just to provide error for --errorlist
      */
-    void unusedFunctionError(ErrorLogger * const errorLogger,
-                             const std::string &filename, unsigned int lineNumber,
-                             const std::string &funcname);
+    static void unusedFunctionError(ErrorLogger * const errorLogger,
+                                    const std::string &filename, unsigned int lineNumber,
+                                    const std::string &funcname);
 
     /**
      * Dummy implementation, just to provide error for --errorlist
      */
-    void runSimplifiedChecks(const Tokenizer *, const Settings *, ErrorLogger *) {
-
+    void runSimplifiedChecks(const Tokenizer* /*tokenizer*/, const Settings* /*settings*/, ErrorLogger* /*errorLogger*/) override {
     }
 
     static std::string myName() {
         return "Unused functions";
     }
 
-    std::string classInfo() const {
+    std::string classInfo() const override {
         return "Check for functions that are never called\n";
     }
 
     class CPPCHECKLIB FunctionUsage {
     public:
-        FunctionUsage() : lineNumber(0), usedSameFile(false), usedOtherFile(false)
-        { }
+        FunctionUsage() : lineNumber(0), usedSameFile(false), usedOtherFile(false) {
+        }
 
         std::string filename;
         unsigned int lineNumber;
@@ -88,8 +115,17 @@ private:
         bool   usedOtherFile;
     };
 
-    std::map<std::string, FunctionUsage> _functions;
+    std::map<std::string, FunctionUsage> mFunctions;
+
+    class CPPCHECKLIB FunctionDecl {
+    public:
+        explicit FunctionDecl(const Function *f);
+        std::string functionName;
+        unsigned int lineNumber;
+    };
+    std::list<FunctionDecl> mFunctionDecl;
+    std::set<std::string> mFunctionCalls;
 };
 /// @}
 //---------------------------------------------------------------------------
-#endif
+#endif // checkunusedfunctionsH

@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,19 +16,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "pathmatch.h"
+#include "testsuite.h"
+
 #include <string>
 #include <vector>
-#include "testsuite.h"
-#include "pathmatch.h"
+
 
 class TestPathMatch : public TestFixture {
 public:
-    TestPathMatch() : TestFixture("TestPathMatch")
-    { }
+    TestPathMatch()
+        : TestFixture("TestPathMatch")
+        , emptyMatcher(std::vector<std::string>())
+        , srcMatcher(std::vector<std::string>(1, "src/"))
+        , fooCppMatcher(std::vector<std::string>(1, "foo.cpp"))
+        , srcFooCppMatcher(std::vector<std::string>(1, "src/foo.cpp")) {
+    }
 
 private:
+    const PathMatch emptyMatcher;
+    const PathMatch srcMatcher;
+    const PathMatch fooCppMatcher;
+    const PathMatch srcFooCppMatcher;
 
-    void run() {
+    void run() override {
         TEST_CASE(emptymaskemptyfile);
         TEST_CASE(emptymaskpath1);
         TEST_CASE(emptymaskpath2);
@@ -58,193 +69,128 @@ private:
         TEST_CASE(filemaskpath4);
     }
 
+    // Test empty PathMatch
     void emptymaskemptyfile() const {
-        std::vector<std::string> masks;
-        PathMatch match(masks);
-        ASSERT(!match.Match(""));
+        ASSERT(!emptyMatcher.match(""));
     }
 
     void emptymaskpath1() const {
-        std::vector<std::string> masks;
-        PathMatch match(masks);
-        ASSERT(!match.Match("src/"));
+        ASSERT(!emptyMatcher.match("src/"));
     }
 
     void emptymaskpath2() const {
-        std::vector<std::string> masks;
-        PathMatch match(masks);
-        ASSERT(!match.Match("../src/"));
+        ASSERT(!emptyMatcher.match("../src/"));
     }
 
     void emptymaskpath3() const {
-        std::vector<std::string> masks;
-        PathMatch match(masks);
-        ASSERT(!match.Match("/home/user/code/src/"));
+        ASSERT(!emptyMatcher.match("/home/user/code/src/"));
     }
 
+    // Test PathMatch containing "src/"
     void onemaskemptypath() const {
-        std::vector<std::string> masks;
-        masks.push_back("src/");
-        PathMatch match(masks);
-        ASSERT(!match.Match(""));
+        ASSERT(!srcMatcher.match(""));
     }
 
     void onemasksamepath() const {
-        std::vector<std::string> masks;
-        masks.push_back("src/");
-        PathMatch match(masks);
-        ASSERT(match.Match("src/"));
+        ASSERT(srcMatcher.match("src/"));
     }
 
     void onemasksamepathdifferentcase() const {
-        std::vector<std::string> masks;
-        masks.push_back("sRc/");
+        std::vector<std::string> masks(1, "sRc/");
         PathMatch match(masks, false);
-        ASSERT(match.Match("srC/"));
+        ASSERT(match.match("srC/"));
     }
 
     void onemasksamepathwithfile() const {
-        std::vector<std::string> masks;
-        masks.push_back("src/");
-        PathMatch match(masks);
-        ASSERT(match.Match("src/file.txt"));
+        ASSERT(srcMatcher.match("src/file.txt"));
     }
 
     void onemaskdifferentdir1() const {
-        std::vector<std::string> masks;
-        masks.push_back("src/");
-        PathMatch match(masks);
-        ASSERT(!match.Match("srcfiles/file.txt"));
+        ASSERT(!srcMatcher.match("srcfiles/file.txt"));
     }
 
     void onemaskdifferentdir2() const {
-        std::vector<std::string> masks;
-        masks.push_back("src/");
-        PathMatch match(masks);
-        ASSERT(!match.Match("proj/srcfiles/file.txt"));
+        ASSERT(!srcMatcher.match("proj/srcfiles/file.txt"));
     }
 
     void onemaskdifferentdir3() const {
-        std::vector<std::string> masks;
-        masks.push_back("src/");
-        PathMatch match(masks);
-        ASSERT(!match.Match("proj/mysrc/file.txt"));
+        ASSERT(!srcMatcher.match("proj/mysrc/file.txt"));
     }
 
     void onemaskdifferentdir4() const {
-        std::vector<std::string> masks;
-        masks.push_back("src/");
-        PathMatch match(masks);
-        ASSERT(!match.Match("proj/mysrcfiles/file.txt"));
+        ASSERT(!srcMatcher.match("proj/mysrcfiles/file.txt"));
     }
 
     void onemasklongerpath1() const {
-        std::vector<std::string> masks;
-        masks.push_back("src/");
-        PathMatch match(masks);
-        ASSERT(match.Match("/tmp/src/"));
+        ASSERT(srcMatcher.match("/tmp/src/"));
     }
 
     void onemasklongerpath2() const {
-        std::vector<std::string> masks;
-        masks.push_back("src/");
-        PathMatch match(masks);
-        ASSERT(match.Match("src/module/"));
+        ASSERT(srcMatcher.match("src/module/"));
     }
 
     void onemasklongerpath3() const {
-        std::vector<std::string> masks;
-        masks.push_back("src/");
-        PathMatch match(masks);
-        ASSERT(match.Match("project/src/module/"));
+        ASSERT(srcMatcher.match("project/src/module/"));
     }
 
     void twomasklongerpath1() const {
-        std::vector<std::string> masks;
-        masks.push_back("src/");
-        masks.push_back("module/");
+        std::vector<std::string> masks = { "src/", "module/" };
         PathMatch match(masks);
-        ASSERT(!match.Match("project/"));
+        ASSERT(!match.match("project/"));
     }
 
     void twomasklongerpath2() const {
-        std::vector<std::string> masks;
-        masks.push_back("src/");
-        masks.push_back("module/");
+        std::vector<std::string> masks = { "src/", "module/" };
         PathMatch match(masks);
-        ASSERT(match.Match("project/src/"));
+        ASSERT(match.match("project/src/"));
     }
 
     void twomasklongerpath3() const {
-        std::vector<std::string> masks;
-        masks.push_back("src/");
-        masks.push_back("module/");
+        std::vector<std::string> masks = { "src/", "module/" };
         PathMatch match(masks);
-        ASSERT(match.Match("project/module/"));
+        ASSERT(match.match("project/module/"));
     }
 
     void twomasklongerpath4() const {
-        std::vector<std::string> masks;
-        masks.push_back("src/");
-        masks.push_back("module/");
+        std::vector<std::string> masks = { "src/", "module/" };
         PathMatch match(masks);
-        ASSERT(match.Match("project/src/module/"));
+        ASSERT(match.match("project/src/module/"));
     }
 
+    // Test PathMatch containing "foo.cpp"
     void filemask1() const {
-        std::vector<std::string> masks;
-        masks.push_back("foo.cpp");
-        PathMatch match(masks);
-        ASSERT(match.Match("foo.cpp"));
+        ASSERT(fooCppMatcher.match("foo.cpp"));
     }
 
     void filemaskdifferentcase() const {
-        std::vector<std::string> masks;
-        masks.push_back("foo.cPp");
+        std::vector<std::string> masks(1, "foo.cPp");
         PathMatch match(masks, false);
-        ASSERT(match.Match("fOo.cpp"));
+        ASSERT(match.match("fOo.cpp"));
     }
 
     void filemask2() const {
-        std::vector<std::string> masks;
-        masks.push_back("foo.cpp");
-        PathMatch match(masks);
-        ASSERT(match.Match("../foo.cpp"));
+        ASSERT(fooCppMatcher.match("../foo.cpp"));
     }
 
     void filemask3() const {
-        std::vector<std::string> masks;
-        masks.push_back("foo.cpp");
-        PathMatch match(masks);
-        ASSERT(match.Match("src/foo.cpp"));
+        ASSERT(fooCppMatcher.match("src/foo.cpp"));
     }
 
+    // Test PathMatch containing "src/foo.cpp"
     void filemaskpath1() const {
-        std::vector<std::string> masks;
-        masks.push_back("src/foo.cpp");
-        PathMatch match(masks);
-        ASSERT(match.Match("src/foo.cpp"));
+        ASSERT(srcFooCppMatcher.match("src/foo.cpp"));
     }
 
     void filemaskpath2() const {
-        std::vector<std::string> masks;
-        masks.push_back("src/foo.cpp");
-        PathMatch match(masks);
-        ASSERT(match.Match("proj/src/foo.cpp"));
+        ASSERT(srcFooCppMatcher.match("proj/src/foo.cpp"));
     }
 
     void filemaskpath3() const {
-        std::vector<std::string> masks;
-        masks.push_back("src/foo.cpp");
-        PathMatch match(masks);
-        ASSERT(!match.Match("foo.cpp"));
+        ASSERT(!srcFooCppMatcher.match("foo.cpp"));
     }
 
     void filemaskpath4() const {
-        std::vector<std::string> masks;
-        masks.push_back("src/foo.cpp");
-        PathMatch match(masks);
-        ASSERT(!match.Match("bar/foo.cpp"));
+        ASSERT(!srcFooCppMatcher.match("bar/foo.cpp"));
     }
 };
 

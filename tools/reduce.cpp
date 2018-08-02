@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2017 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,6 +15,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "cppcheck.h"
+#include "mathlib.h"
+#include "path.h"
+
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -22,8 +26,15 @@
 #include <cstring>
 #include <ctime>
 
-#include "cppcheck.h"
-#include "mathlib.h"
+class ReduceSettings : public Settings {
+public:
+    ReduceSettings() : filename(0), linenr(0), hang(false), maxtime(0) { }
+
+    const char *filename;
+    std::size_t linenr;
+    bool hang;
+    unsigned int maxtime;
+};
 
 class CppcheckExecutor : public ErrorLogger {
 private:
@@ -33,20 +44,16 @@ private:
     std::time_t stopTime;
 
 public:
-    CppcheckExecutor(const char *defines, std::size_t linenr, bool hang)
+    explicit CppcheckExecutor(const ReduceSettings & settings)
         : ErrorLogger()
-        , cppcheck(*this,false)
+        , cppcheck(*this, false)
         , foundLine(false)
         , stopTime(0) {
 
-        if (!hang)
-            pattern = ":" + MathLib::longToString(linenr) + "]";
+        if (!settings.hang)
+            pattern = ":" + MathLib::toString(settings.linenr) + "]";
 
-        if (defines)
-            cppcheck.settings().userDefines = defines;
-        cppcheck.settings().addEnabled("all");
-        cppcheck.settings().inconclusive = true;
-        cppcheck.settings()._force = true;
+        cppcheck.settings() = settings;
     }
 
     bool run(const char filename[], unsigned int maxtime) {
@@ -63,7 +70,7 @@ public:
             cppcheck.terminate();
         }
     }
-    void reportProgress(const std::string &filename, const char stage[], const std::size_t value) {
+    void reportProgress(const std::string &/*filename*/, const char /*stage*/[], const std::size_t /*value*/) {
         if (std::time(0) > stopTime) {
             if (pattern.empty())
                 foundLine = true;
@@ -73,14 +80,6 @@ public:
             cppcheck.terminate();
         }
     }
-};
-
-struct ReduceSettings {
-    const char *filename;
-    std::size_t linenr;
-    bool hang;
-    unsigned int maxtime;
-    const char *defines;
 };
 
 static bool test(const ReduceSettings &settings, const std::vector<std::string> &filedata, const std::size_t line1, const std::size_t line2)
@@ -97,7 +96,7 @@ static bool test(const ReduceSettings &settings, const std::vector<std::string> 
         fout << ((i>=line1 && i<=line2) ? "" : filedata[i]) << std::endl;
     fout.close();
 
-    CppcheckExecutor cppcheck(settings.defines, settings.linenr, settings.hang);
+    CppcheckExecutor cppcheck(settings);
     return cppcheck.run(tempfilename.c_str(), settings.maxtime);
 }
 
@@ -106,11 +105,19 @@ static bool test(const ReduceSettings &settings, const std::vector<std::string> 
     return test(settings, filedata, line, line);
 }
 
+#ifdef GDB_HELPERS
 static void printstr(const std::vector<std::string> &filedata, int i1, int i2)
 {
     std::cout << filedata.size();
     for (int i = i1; i < i2; ++i)
         std::cout << i << ":" << filedata[i] << std::endl;
+}
+#endif
+
+static char getEndChar(const std::string &line)
+{
+    std::size_t pos = line.find_last_not_of(" \t");
+    return (pos == std::string::npos) ? '\0' : line[pos];
 }
 
 static std::vector<std::string> readfile(const std::string &filename)
@@ -173,6 +180,62 @@ static std::vector<std::string> readfile(const std::string &filename)
 
         filedata.push_back(line);
     }
+
+    // put function declarations in a single line..
+    for (unsigned int linenr = 0U; linenr+1U < filedata.size(); ++linenr) {
+        // Does this look like start of a function declaration?
+        if (filedata[linenr].empty()                        ||
+            !std::isalpha(filedata[linenr][0U])             ||
+            getEndChar(filedata[linenr]) != ','             ||
+            filedata[linenr].find("(") == std::string::npos ||
+            filedata[linenr].find(")") != std::string::npos)
+            continue;
+
+        // Where does function declaration end?
+        unsigned int linenr2 = linenr + 1U;
+        while (linenr2 < filedata.size() &&
+               getEndChar(filedata[linenr2]) == ','                    &&
+               filedata[linenr2].find("(") == std::string::npos        &&
+               filedata[linenr2].find(")") == std::string::npos)
+            ++linenr2;
+
+        // If function declaration looks correct.. simplify it
+        if (linenr2 < filedata.size()                                  &&
+            getEndChar(filedata[linenr2]) == ';'                       &&
+            filedata[linenr2].find("(") == std::string::npos           &&
+            filedata[linenr2].size() > 2U                              &&
+            filedata[linenr2].find(")") == filedata[linenr2].size() - 2U) {
+            std::string code;
+            for (unsigned int i = linenr; i <= linenr2; i++) {
+                code = code + filedata[i];
+                filedata[i].clear();
+            }
+            filedata[linenr] = code;
+        }
+    }
+
+    // put #define statements in a single line..
+    for (unsigned int linenr = 0U; linenr+1U < filedata.size(); ++linenr) {
+        // is this a multiline #define statement?
+        if (filedata[linenr].compare(0,8,"#define ")!=0 || getEndChar(filedata[linenr])!='\\')
+            continue;
+
+        // where does statement end?
+        unsigned int linenr2 = linenr + 1U;
+        while (linenr2 < filedata.size() && getEndChar(filedata[linenr2]) == '\\')
+            ++linenr2;
+
+        // simplify
+        if (linenr2 < filedata.size()) {
+            std::string code;
+            for (unsigned int i = linenr; i <= linenr2; i++) {
+                code = code + filedata[i].substr(0,filedata[i].size() - 1U);
+                filedata[i].clear();
+            }
+            filedata[linenr] = code;
+        }
+    }
+
     return filedata;
 }
 
@@ -571,25 +634,165 @@ static bool cleanupStatements(const ReduceSettings &settings, std::vector<std::s
     return changed;
 }
 
+static bool tryLoadLibrary(Library& destination, const char* basepath, const char* filename)
+{
+    const Library::Error err = destination.load(basepath, filename);
+
+    if (err.errorcode == Library::UNKNOWN_ELEMENT)
+        std::cout << "reduce: Found unknown elements in configuration file '" << filename << "': " << err.reason << std::endl;
+    else if (err.errorcode != Library::OK) {
+        std::string errmsg;
+        switch (err.errorcode) {
+        case Library::OK:
+            break;
+        case Library::FILE_NOT_FOUND:
+            errmsg = "File not found";
+            break;
+        case Library::BAD_XML:
+            errmsg = "Bad XML";
+            break;
+        case Library::UNKNOWN_ELEMENT:
+            errmsg = "Unexpected element";
+            break;
+        case Library::MISSING_ATTRIBUTE:
+            errmsg = "Missing attribute";
+            break;
+        case Library::BAD_ATTRIBUTE_VALUE:
+            errmsg = "Bad attribute value";
+            break;
+        case Library::UNSUPPORTED_FORMAT:
+            errmsg = "File is of unsupported format version";
+            break;
+        case Library::DUPLICATE_PLATFORM_TYPE:
+            errmsg = "Duplicate platform type";
+            break;
+        case Library::PLATFORM_TYPE_REDEFINED:
+            errmsg = "Platform type redefined";
+            break;
+        }
+        if (!err.reason.empty())
+            errmsg += " '" + err.reason + "'";
+        std::cout << "reduce: Failed to load library configuration file '" << filename << "'. " << errmsg << std::endl;
+        return false;
+    }
+    return true;
+}
+
 
 int main(int argc, char *argv[])
 {
     std::cout << "cppcheck tool that reduce code for a hang / false positive" << std::endl;
 
     bool print = false;
-    struct ReduceSettings settings = {0};
+    ReduceSettings settings;
     settings.maxtime = 300;  // default timeout = 5 minutes
+    bool def = false;
+    bool maxconfigs = false;
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--stdout") == 0)
             print = true;
-        else if (strcmp(argv[i], "--hang") == 0) {
+        else if (strcmp(argv[i], "--hang") == 0)
             settings.hang = true;
+        else if (strncmp(argv[i],"-D", 2) == 0) {
+            if (!settings.userDefines.empty())
+                settings.userDefines += ";";
+            if ((strcmp(argv[i], "-D") == 0) && (i+1<argc))
+                settings.userDefines += argv[++i];
+            else
+                settings.userDefines += argv[i] + 2;
+            def = true;
+        } else if (std::strncmp(argv[i], "-I", 2) == 0) {
+            std::string path;
+
+            if ((std::strcmp(argv[i], "-I") == 0) && (i+1<argc))
+                path = argv[++i];
+            else
+                path = argv[i] + 2;
+
+            if (!path.empty()) {
+                path = Path::fromNativeSeparators(path);
+                path = Path::removeQuotationMarks(path);
+
+                // If path doesn't end with / or \, add it
+                if (path[path.length()-1] != '/')
+                    path += '/';
+
+                settings.includePaths.push_back(path);
+            }
         } else if (strncmp(argv[i], "--maxtime=", 10) == 0)
             settings.maxtime = std::atoi(argv[i] + 10);
-        else if (strncmp(argv[i],"--cfg=",6)==0)
-            settings.defines = argv[i] + 6;
-        else if (settings.filename==NULL && strchr(argv[i],'.'))
+        else if (strncmp(argv[i],"--cfg=",6)==0) {
+            if (!settings.userDefines.empty())
+                settings.userDefines += ";";
+            settings.userDefines += argv[i] + 6;
+        } else if (std::strncmp(argv[i], "--platform=", 11) == 0) {
+            std::string platform(11+argv[i]);
+
+            if (platform == "win32A")
+                settings.platform(Settings::Win32A);
+            else if (platform == "win32W")
+                settings.platform(Settings::Win32W);
+            else if (platform == "win64")
+                settings.platform(Settings::Win64);
+            else if (platform == "unix32")
+                settings.platform(Settings::Unix32);
+            else if (platform == "unix64")
+                settings.platform(Settings::Unix64);
+            else {
+                std::cerr << "unrecognized platform: " << platform << std::endl;
+                return EXIT_FAILURE;
+            }
+        } else if (std::strcmp(argv[i], "--debug-warnings") == 0)
+            settings.debugwarnings = true;
+        else if (std::strcmp(argv[i], "-f") == 0 || std::strcmp(argv[i], "--force") == 0)
+            settings.force = true;
+        else if (std::strncmp(argv[i], "--enable=", 9) == 0) {
+            std::string errmsg = settings.addEnabled(argv[i] + 9);
+            if (!errmsg.empty()) {
+                errmsg.erase(0, 11); // erase "cppcheck: " from message
+                std::cerr << errmsg << std::endl;
+                return EXIT_FAILURE;
+            }
+            // when "style" is enabled, also enable "warning", "performance" and "portability"
+            if (settings.isEnabled(Settings::STYLE)) {
+                settings.addEnabled("warning");
+                settings.addEnabled("performance");
+                settings.addEnabled("portability");
+            }
+        } else if (std::strcmp(argv[i], "--inconclusive") == 0)
+            settings.inconclusive = true;
+        else if (std::strncmp(argv[i], "--max-configs=", 14) == 0) {
+            settings.force = false;
+
+            std::istringstream iss(14+argv[i]);
+            if (!(iss >> settings.maxConfigs)) {
+                std::cerr << "argument to '--max-configs=' is not a number." << std::endl;
+                return EXIT_FAILURE;
+            }
+
+            if (settings.maxConfigs < 1) {
+                std::cerr << "argument to '--max-configs=' must be greater than 0." << std::endl;
+                return EXIT_FAILURE;
+            }
+
+            maxconfigs = true;
+        } else if (std::strncmp(argv[i], "--library=", 10) == 0) {
+            if (!tryLoadLibrary(settings.library, argv[0], argv[i]+10))
+                return EXIT_FAILURE;
+        } else if (std::strcmp(argv[i], "--std=posix") == 0) {
+            settings.standards.posix = true;
+        } else if (std::strcmp(argv[i], "--std=c89") == 0) {
+            settings.standards.c = Standards::C89;
+        } else if (std::strcmp(argv[i], "--std=c99") == 0) {
+            settings.standards.c = Standards::C99;
+        } else if (std::strcmp(argv[i], "--std=c11") == 0) {
+            settings.standards.c = Standards::C11;
+        } else if (std::strcmp(argv[i], "--std=c++03") == 0) {
+            settings.standards.cpp = Standards::CPP03;
+        } else if (std::strcmp(argv[i], "--std=c++11") == 0) {
+            settings.standards.cpp = Standards::CPP11;
+        } else if (settings.filename==nullptr && strchr(argv[i],'.'))
             settings.filename = argv[i];
         else if (settings.linenr == 0U && MathLib::isInt(argv[i]))
             settings.linenr = std::atoi(argv[i]);
@@ -599,9 +802,15 @@ int main(int argc, char *argv[])
         }
     }
 
-    if ((!settings.hang && settings.linenr == 0U) || settings.filename == NULL) {
+    if (def && !settings.force && !maxconfigs)
+        settings.maxConfigs = 1U;
+
+    if (settings.force)
+        settings.maxConfigs = ~0U;
+
+    if ((!settings.hang && settings.linenr == 0U) || settings.filename == nullptr) {
         std::cerr << "Syntax:" << std::endl
-                  << argv[0] << " [--stdout] [--cfg=X] [--hang] [--maxtime=60] filename [linenr]" << std::endl;
+                  << argv[0] << " [--stdout] [--cfg=X] [--hang] [--maxtime=60] [-D define] [-I includepath] [--force] [--enable=<id>] [--inconclusive] [--debug-warnings] [--max-configs=<limit>] [--platform=<type>] [--library=<cfg>] [--std=<id>] filename [linenr]" << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -609,7 +818,7 @@ int main(int argc, char *argv[])
 
     // Execute Cppcheck on the file..
     {
-        CppcheckExecutor cppcheck(settings.defines, settings.linenr, settings.hang);
+        CppcheckExecutor cppcheck(settings);
         if (!cppcheck.run(settings.filename, settings.maxtime)) {
             std::cerr << "Can't reproduce false positive at line " << settings.linenr << std::endl;
             return EXIT_FAILURE;

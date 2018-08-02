@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2017 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,13 +33,13 @@ class MainWindow;
 class ScratchPad : public QDialog {
     Q_OBJECT
 public:
-    ScratchPad(MainWindow& mainWindow);
+    explicit ScratchPad(MainWindow& mainWindow);
 
 private slots:
     /**
     * @brief Called when check button is clicked.
     */
-    void CheckButtonClicked();
+    void checkButtonClicked();
 
 private:
     Ui::ScratchPad mUI;

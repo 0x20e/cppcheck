@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,22 +17,23 @@
  */
 
 
-#include "tokenize.h"
 #include "check64bit.h"
+#include "settings.h"
 #include "testsuite.h"
-#include <sstream>
+#include "tokenize.h"
 
-extern std::ostringstream errout;
 
 class Test64BitPortability : public TestFixture {
 public:
-    Test64BitPortability() : TestFixture("Test64BitPortability")
-    { }
+    Test64BitPortability() : TestFixture("Test64BitPortability") {
+    }
 
 private:
+    Settings settings;
 
+    void run() override {
+        settings.addEnabled("portability");
 
-    void run() {
         TEST_CASE(novardecl);
         TEST_CASE(functionpar);
         TEST_CASE(structmember);
@@ -44,9 +45,6 @@ private:
     void check(const char code[]) {
         // Clear the error buffer..
         errout.str("");
-
-        Settings settings;
-        settings.addEnabled("portability");
 
         // Tokenize..
         Tokenizer tokenizer(&settings, this);
@@ -100,14 +98,20 @@ private:
               "    return 6 + p[2] * 256;\n"
               "}");
         ASSERT_EQUALS("", errout.str());
+
+        check("int foo(int *p) {\n" // #6096
+              "    bool a = p;\n"
+              "    return a;\n"
+              "}");
+        ASSERT_EQUALS("", errout.str());
     }
 
     void structmember() {
-        check("struct Foo { int *p };\n"
+        check("struct Foo { int *p; };\n"
               "void f(struct Foo *foo) {\n"
               "    int i = foo->p;\n"
               "}");
-        TODO_ASSERT_EQUALS("[test.cpp:3]: (portability) Assigning a pointer to an integer is not portable.\n", "", errout.str());
+        ASSERT_EQUALS("[test.cpp:3]: (portability) Assigning a pointer to an integer is not portable.\n", errout.str());
     }
 
     void ptrcompare() {
@@ -136,7 +140,7 @@ private:
               "    int x = 10;\n"
               "    int *a = x * x;\n"
               "}");
-        TODO_ASSERT_EQUALS("error", "", errout.str());
+        ASSERT_EQUALS("[test.cpp:3]: (portability) Assigning an integer to a pointer is not portable.\n", errout.str());
 
         check("void foo(int *start, int *end) {\n"
               "    int len;\n"
@@ -166,6 +170,13 @@ private:
               "}");
         ASSERT_EQUALS("", errout.str());
 
+        check("struct Foo {};\n"
+              "\n"
+              "int* dostuff(Foo foo) {\n"
+              "  return foo;\n"
+              "}");
+        ASSERT_EQUALS("", errout.str());
+
         check("int foo(char* c) {\n"
               "    return c;\n"
               "}");
@@ -191,6 +202,28 @@ private:
               "};\n"
               "int func(struct s *p) {\n"
               " return 1 + p->i;\n"
+              "}");
+        ASSERT_EQUALS("", errout.str());
+
+        check("static void __iomem *f(unsigned int port_no) {\n"
+              "  void __iomem *mmio = hpriv->mmio;\n"
+              "  return mmio + (port_no * 0x80);\n"
+              "}");
+        ASSERT_EQUALS("", errout.str());
+
+        // #7247: don't check return statements in nested functions..
+        check("int foo() {\n"
+              "  struct {\n"
+              "    const char * name() { return \"abc\"; }\n"
+              "  } table;\n"
+              "}");
+        ASSERT_EQUALS("", errout.str());
+
+        // #7451: Lambdas
+        check("const int* test(std::vector<int> outputs, const std::string& text) {\n"
+              "  auto it = std::find_if(outputs.begin(), outputs.end(), \n"
+              "     [&](int ele) { return \"test\" == text; });\n"
+              "  return nullptr;\n"
               "}");
         ASSERT_EQUALS("", errout.str());
     }

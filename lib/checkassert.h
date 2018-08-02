@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,12 +18,20 @@
 
 
 //---------------------------------------------------------------------------
-#ifndef CheckAssertH
-#define CheckAssertH
+#ifndef checkassertH
+#define checkassertH
 //---------------------------------------------------------------------------
 
-#include "config.h"
 #include "check.h"
+#include "config.h"
+
+#include <string>
+
+class ErrorLogger;
+class Scope;
+class Settings;
+class Token;
+class Tokenizer;
 
 /// @addtogroup Checks
 /// @{
@@ -34,14 +42,14 @@
 
 class CPPCHECKLIB CheckAssert : public Check {
 public:
-    CheckAssert() : Check(myName())
-    {}
+    CheckAssert() : Check(myName()) {
+    }
 
     CheckAssert(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger)
-        : Check(myName(), tokenizer, settings, errorLogger)
-    {}
+        : Check(myName(), tokenizer, settings, errorLogger) {
+    }
 
-    virtual void runSimplifiedChecks(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger) {
+    virtual void runSimplifiedChecks(const Tokenizer *tokenizer, const Settings *settings, ErrorLogger *errorLogger) override {
         CheckAssert check(tokenizer, settings, errorLogger);
         check.assertWithSideEffects();
     }
@@ -49,28 +57,27 @@ public:
     void assertWithSideEffects();
 
 protected:
-    bool checkVariableAssignment(const Token* tmp, bool reportErr = true);
+    void checkVariableAssignment(const Token* assignTok, const Scope *assertionScope);
     static bool inSameScope(const Token* returnTok, const Token* assignTok);
-
-    static const Token* findAssertPattern(const Token *start);
 
 private:
     void sideEffectInAssertError(const Token *tok, const std::string& functionName);
     void assignmentInAssertError(const Token *tok, const std::string &varname);
 
-    void getErrorMessages(ErrorLogger *errorLogger, const Settings *settings) const {
-        CheckAssert c(0, settings, errorLogger);
-        c.assertWithSideEffects();
+    void getErrorMessages(ErrorLogger *errorLogger, const Settings *settings) const override {
+        CheckAssert c(nullptr, settings, errorLogger);
+        c.sideEffectInAssertError(nullptr, "function");
+        c.assignmentInAssertError(nullptr, "var");
     }
 
     static std::string myName() {
-        return "Side Effects in asserts";
+        return "Assert";
     }
 
-    std::string classInfo() const {
-        return "Warn if side effects in assert statements \n";
+    std::string classInfo() const override {
+        return "Warn if there are side effects in assert statements (since this cause different behaviour in debug/release builds).\n";
     }
 };
 /// @}
 //---------------------------------------------------------------------------
-#endif
+#endif // checkassertH

@@ -1,28 +1,35 @@
-CONFIG += qtestlib
-#DEPENDPATH += . ..
-INCLUDEPATH += . ../.. ../../../lib
+Qt += testlib
+QT += widgets
+QT += printsupport
 
-LIBS += -L../../../externals -lpcre
-INCLUDEPATH += ../../externals
+INCLUDEPATH += $${PWD}/..
 
-BASEPATH = ../../../lib/
-include($$PWD/../../lib/lib.pri)
+LIBS += -L$$PWD/../../externals
+INCLUDEPATH += $${PWD}/../../externals
+
+include($${PWD}/../../lib/lib.pri)
 
 # GUI
-SOURCES += ../../erroritem.cpp \
-    ../../filelist.cpp \
-    ../../projectfile.cpp \
-    ../../report.cpp \
-    ../../translationhandler.cpp \
-    ../../xmlreport.cpp \
-    ../../xmlreportv1.cpp \
-    ../../xmlreportv2.cpp
+SOURCES += $${PWD}/../erroritem.cpp \
+    $${PWD}/../filelist.cpp \
+    $${PWD}/../projectfile.cpp \
+    $${PWD}/../report.cpp \
+    $${PWD}/../translationhandler.cpp \
+    $${PWD}/../xmlreport.cpp \
+    $${PWD}/../xmlreportv2.cpp
 
-HEADERS += ../../erroritem.h \
-    ../../filelist.h \
-    ../../projectfile.h \
-    ../../report.h \
-    ../../translationhandler.h \
-    ../../xmlreport.h \
-    ../../xmlreportv1.h \
-    ../../xmlreportv2.h
+HEADERS += $${PWD}/../erroritem.h \
+    $${PWD}/../filelist.h \
+    $${PWD}/../projectfile.h \
+    $${PWD}/../report.h \
+    $${PWD}/../translationhandler.h \
+    $${PWD}/../xmlreport.h \
+    $${PWD}/../xmlreportv2.h
+
+contains(QMAKE_CC, gcc) {
+    QMAKE_CXXFLAGS += -std=c++11
+}
+
+contains(QMAKE_CXX, clang++) {
+    QMAKE_CXXFLAGS += -std=c++11
+}

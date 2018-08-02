@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 class ErrorItem;
 class ApplicationList;
 class QModelIndex;
+class QPrinter;
 class QSettings;
 class CheckStatistics;
 
@@ -43,29 +44,38 @@ class ResultsView : public QWidget {
     Q_OBJECT
 public:
 
-    ResultsView(QWidget * parent = 0);
-    void Initialize(QSettings *settings, ApplicationList *list);
+    explicit ResultsView(QWidget * parent = 0);
+    void initialize(QSettings *settings, ApplicationList *list, ThreadHandler *checkThreadHandler);
+    ResultsView(const ResultsView &) = delete;
     virtual ~ResultsView();
+    ResultsView &operator=(const ResultsView &) = delete;
 
-    /**
-    * @brief Function to show/hide certain type of errors
-    * Refreshes the tree.
-    *
-    * @param type Type of error to show/hide
-    * @param show Should specified errors be shown (true) or hidden (false)
-    */
-    void ShowResults(ShowTypes::ShowType type, bool show);
+    void setTags(const QStringList &tags) {
+        mUI.mTree->setTags(tags);
+    }
 
     /**
      * @brief Clear results and statistics and reset progressinfo.
      * @param results Remove all the results from view?
      */
-    void Clear(bool results);
+    void clear(bool results);
 
     /**
      * @brief Remove a file from the results.
      */
-    void Clear(const QString &filename);
+    void clear(const QString &filename);
+
+    /**
+     * @brief Remove a recheck file from the results.
+     */
+    void clearRecheckFile(const QString &filename);
+
+    /**
+    * @brief Write statistics in file
+    *
+    * @param filename Filename to save statistics to
+    */
+    void saveStatistics(const QString &filename) const;
 
     /**
     * @brief Save results to a file
@@ -73,7 +83,12 @@ public:
     * @param filename Filename to save results to
     * @param type Type of the report.
     */
-    void Save(const QString &filename, Report::Type type) const;
+    void save(const QString &filename, Report::Type type) const;
+
+    /**
+     * @brief Update results from old report (tag, sinceDate)
+     */
+    void updateFromOldReport(const QString &filename) const;
 
     /**
     * @brief Update tree settings
@@ -83,12 +98,14 @@ public:
     * @param saveAllErrors Save all visible errors
     * @param showNoErrorsMessage Show "no errors"?
     * @param showErrorId Show error id?
+    * @param showInconclusive Show inconclusive?
     */
-    void UpdateSettings(bool showFullPath,
+    void updateSettings(bool showFullPath,
                         bool saveFullPath,
                         bool saveAllErrors,
                         bool showNoErrorsMessage,
-                        bool showErrorId);
+                        bool showErrorId,
+                        bool showInconclusive);
 
     /**
     * @brief Set the directory we are checking
@@ -96,62 +113,70 @@ public:
     * This is used to split error file path to relative if necessary
     * @param dir Directory we are checking
     */
-    void SetCheckDirectory(const QString &dir);
+    void setCheckDirectory(const QString &dir);
+
+    /**
+    * @brief Get the directory we are checking
+    *
+    * @return Directory containing source files
+    */
+
+    QString getCheckDirectory(void);
 
     /**
     * @brief Inform the view that checking has started
     *
     * @param count Count of files to be checked.
     */
-    void CheckingStarted(int count);
+    void checkingStarted(int count);
 
     /**
     * @brief Inform the view that checking finished.
     *
     */
-    void CheckingFinished();
+    void checkingFinished();
 
     /**
     * @brief Do we have visible results to show?
     *
     * @return true if there is at least one warning/error to show.
     */
-    bool HasVisibleResults() const;
+    bool hasVisibleResults() const;
 
     /**
     * @brief Do we have results from check?
     *
     * @return true if there is at least one warning/error, hidden or visible.
     */
-    bool HasResults() const;
+    bool hasResults() const;
 
     /**
     * @brief Save View's settings
     *
     * @param settings program settings.
     */
-    void SaveSettings(QSettings *settings);
+    void saveSettings(QSettings *settings);
 
     /**
     * @brief Translate this view
     *
     */
-    void Translate();
+    void translate();
 
-    void DisableProgressbar();
+    void disableProgressbar();
 
     /**
     * @brief Read errors from report XML file.
     * @param filename Report file to read.
     *
     */
-    void ReadErrorsXml(const QString &filename);
+    void readErrorsXml(const QString &filename);
 
     /**
      * @brief Return checking statistics.
      * @return Pointer to checking statistics.
      */
-    CheckStatistics *GetStatistics() const {
+    CheckStatistics *getStatistics() const {
         return mStatistics;
     }
 
@@ -159,7 +184,7 @@ public:
      * @brief Return Showtypes.
      * @return Pointer to Showtypes.
      */
-    ShowTypes * GetShowTypes() const {
+    ShowTypes * getShowTypes() const {
         return &mUI.mTree->mShowSeverities;
     }
 
@@ -169,14 +194,69 @@ signals:
     * @brief Signal to be emitted when we have results
     *
     */
-    void GotResults();
+    void gotResults();
 
     /**
     * @brief Signal that results have been hidden or shown
     *
     * @param hidden true if there are some hidden results, or false if there are not
     */
-    void ResultsHidden(bool hidden);
+    void resultsHidden(bool hidden);
+
+    /**
+    * @brief Signal to perform recheck of selected files
+    *
+    * @param selectedFilesList list of selected files
+    */
+    void checkSelected(QStringList selectedFilesList);
+
+    /**
+     * Some results have been tagged
+     */
+    void tagged();
+
+    /** Suppress Ids */
+    void suppressIds(QStringList ids);
+
+    /**
+    * @brief Show/hide certain type of errors
+    * Refreshes the tree.
+    *
+    * @param type Type of error to show/hide
+    * @param show Should specified errors be shown (true) or hidden (false)
+    */
+    void showResults(ShowTypes::ShowType type, bool show);
+
+    /**
+    * @brief Show/hide cppcheck errors.
+    * Refreshes the tree.
+    *
+    * @param show Should specified errors be shown (true) or hidden (false)
+    */
+    void showCppcheckResults(bool show);
+
+    /**
+    * @brief Show/hide clang-tidy/clang-analyzer errors.
+    * Refreshes the tree.
+    *
+    * @param show Should specified errors be shown (true) or hidden (false)
+    */
+    void showClangResults(bool show);
+
+    /**
+    * @brief Collapse all results in the result list.
+    */
+    void collapseAllResults();
+
+    /**
+    * @brief Expand all results in the result list.
+    */
+    void expandAllResults();
+
+    /**
+    * @brief Show hidden results in the result list.
+    */
+    void showHiddenResults();
 
 public slots:
 
@@ -186,48 +266,69 @@ public slots:
     * @param value Current progress value
     * @param description Description to accompany the progress
     */
-    void Progress(int value, const QString& description);
+    void progress(int value, const QString& description);
 
     /**
     * @brief Slot for new error to be displayed
     *
     * @param item Error data
     */
-    void Error(const ErrorItem &item);
-
-    /**
-    * @brief Collapse all results in the result list.
-    */
-    void CollapseAllResults();
-
-    /**
-    * @brief Expand all results in the result list.
-    */
-    void ExpandAllResults();
+    void error(const ErrorItem &item);
 
     /**
     * @brief Filters the results in the result list.
     */
-    void FilterResults(const QString& filter);
-
-    /**
-    * @brief Show hidden results in the result list.
-    */
-    void ShowHiddenResults();
+    void filterResults(const QString& filter);
 
     /**
     * @brief Update detailed message when selected item is changed.
     *
     * @param index Position of new selected item.
     */
-    void UpdateDetails(const QModelIndex &index);
+    void updateDetails(const QModelIndex &index);
+
+    /**
+    * @brief Slot opening a print dialog to print the current report
+    */
+    void print();
+
+    /**
+    * @brief Slot printing the current report to the printer.
+    * @param printer The printer used for printing the report.
+    */
+    void print(QPrinter* printer);
+
+    /**
+    * @brief Slot opening a print preview dialog
+    */
+    void printPreview();
+
+    /**
+     * \brief Log message
+     */
+    void log(const QString &str);
+
+    /**
+     * \brief debug message
+     */
+    void debugError(const ErrorItem &item);
+
+    /**
+     * \brief Clear log messages
+     */
+    void logClear();
+
+    /**
+     * \brief Copy selected log message entry
+     */
+    void logCopyEntry();
+
+    /**
+     * \brief Copy all log messages
+     */
+    void logCopyComplete();
 
 protected:
-    /**
-    * @brief Have any errors been found
-    */
-    bool mErrorsFound;
-
     /**
     * @brief Should we show a "No errors found dialog" every time no errors were found?
     */
@@ -236,8 +337,12 @@ protected:
     Ui::ResultsView mUI;
 
     CheckStatistics *mStatistics;
-
-private:
+private slots:
+    /**
+     * @brief Custom context menu for Analysis Log
+     * @param pos Mouse click position
+     */
+    void on_mListLog_customContextMenuRequested(const QPoint &pos);
 };
 /// @}
 #endif // RESULTSVIEW_H

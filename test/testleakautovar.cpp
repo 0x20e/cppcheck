@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,21 +17,30 @@
  */
 
 
-#include "tokenize.h"
 #include "checkleakautovar.h"
+#include "library.h"
+#include "settings.h"
 #include "testsuite.h"
-#include <sstream>
+#include "tokenize.h"
 
-extern std::ostringstream errout;
 
 class TestLeakAutoVar : public TestFixture {
 public:
-    TestLeakAutoVar() : TestFixture("TestLeakAutoVar")
-    { }
+    TestLeakAutoVar() : TestFixture("TestLeakAutoVar") {
+    }
 
 private:
+    Settings settings;
 
-    void run() {
+    void run() override {
+        int id = 0;
+        while (!settings.library.ismemory(++id));
+        settings.library.setalloc("malloc", id, -1);
+        settings.library.setdealloc("free", id, 1);
+        while (!settings.library.isresource(++id));
+        settings.library.setalloc("fopen", id, -1);
+        settings.library.setdealloc("fclose", id, 1);
+
         // Assign
         TEST_CASE(assign1);
         TEST_CASE(assign2);
@@ -46,6 +55,7 @@ private:
         TEST_CASE(assign11); // #3942: x = a(b(p));
         TEST_CASE(assign12); // #4236: FP. bar(&x);
         TEST_CASE(assign13); // #4237: FP. char*&ref=p; p=malloc(10); free(ref);
+        TEST_CASE(assign14);
 
         TEST_CASE(deallocuse1);
         TEST_CASE(deallocuse2);
@@ -53,13 +63,26 @@ private:
         TEST_CASE(deallocuse4);
         TEST_CASE(deallocuse5); // #4018: FP. free(p), p = 0;
         TEST_CASE(deallocuse6); // #4034: FP. x = p = f();
+        TEST_CASE(deallocuse7); // #6467, #6469, #6473
 
         TEST_CASE(doublefree1);
         TEST_CASE(doublefree2);
+        TEST_CASE(doublefree3); // #4914
+        TEST_CASE(doublefree4); // #5451 - FP when exit is called
+        TEST_CASE(doublefree5); // #5522
+        TEST_CASE(doublefree6); // #7685
+        TEST_CASE(doublefree7);
+        TEST_CASE(doublefree8);
+        TEST_CASE(doublefree9);
+
 
         // exit
         TEST_CASE(exit1);
         TEST_CASE(exit2);
+        TEST_CASE(exit3);
+
+        // handling function calls
+        TEST_CASE(functioncall1);
 
         // goto
         TEST_CASE(goto1);
@@ -72,6 +95,9 @@ private:
         TEST_CASE(ifelse4);
         TEST_CASE(ifelse5);
         TEST_CASE(ifelse6); // #3370
+        TEST_CASE(ifelse7); // #5576 - if (fd < 0)
+        TEST_CASE(ifelse8); // #5747 - if (fd == -1)
+        TEST_CASE(ifelse9); // #5273 - if (X(p==NULL, 0))
 
         // switch
         TEST_CASE(switch1);
@@ -80,21 +106,28 @@ private:
         TEST_CASE(loop1);
 
         // mismatching allocation/deallocation
-        TEST_CASE(mismatch_fopen_free);
+        TEST_CASE(mismatchAllocDealloc);
+
+        TEST_CASE(smartPointerDeleter);
+        TEST_CASE(smartPointerRelease);
 
         // Execution reaches a 'return'
         TEST_CASE(return1);
         TEST_CASE(return2);
         TEST_CASE(return3);
         TEST_CASE(return4);
+        TEST_CASE(return5);
 
         // General tests: variable type, allocation type, etc
         TEST_CASE(test1);
         TEST_CASE(test2);
         TEST_CASE(test3);  // #3954 - reference pointer
+        TEST_CASE(test4);  // #5923 - static pointer
+        TEST_CASE(test5);  // unknown type
 
         // Execution reaches a 'throw'
         TEST_CASE(throw1);
+        TEST_CASE(throw2);
 
         // Possible leak => Further configuration is needed for complete analysis
         TEST_CASE(configuration1);
@@ -103,22 +136,29 @@ private:
         TEST_CASE(configuration4);
 
         TEST_CASE(ptrptr);
+
+        TEST_CASE(nestedAllocation);
+        TEST_CASE(testKeywords); // #6767
+
+        TEST_CASE(inlineFunction); // #3989
+
+        TEST_CASE(smartPtrInContainer); // #8262
     }
 
-    void check(const char code[]) {
+    void check(const char code[], bool cpp = false) {
         // Clear the error buffer..
         errout.str("");
 
         // Tokenize..
-        Settings settings;
         Tokenizer tokenizer(&settings, this);
         std::istringstream istr(code);
-        tokenizer.tokenize(istr, "test.c");
-        tokenizer.simplifyTokenList();
+        tokenizer.tokenize(istr, cpp?"test.cpp":"test.c");
+        tokenizer.simplifyTokenList2();
 
         // Check for leaks..
         CheckLeakAutoVar c;
-        settings.experimental = true;
+        settings.checkLibrary = true;
+        settings.addEnabled("information");
         c.runSimplifiedChecks(&tokenizer, &settings, this);
     }
 
@@ -216,7 +256,7 @@ private:
               "    char *p = malloc(10);\n"
               "    x = a(b(p));\n"
               "}");
-        ASSERT_EQUALS("[test.c:4]: (information) b configuration is needed to establish if there is a leak or not\n", errout.str());
+        ASSERT_EQUALS("[test.c:4]: (information) --check-library: Function b() should have <use>/<leak-ignore> configuration\n", errout.str());
     }
 
     void assign12() { // #4236: FP. bar(&x)
@@ -239,6 +279,20 @@ private:
         ASSERT_EQUALS("", errout.str());
     }
 
+    void assign14() {
+        check("void f(int x) {\n"
+              "    char *p;\n"
+              "    if (x && (p = malloc(10))) { }"
+              "}");
+        ASSERT_EQUALS("[test.c:3]: (error) Memory leak: p\n", errout.str());
+
+        check("void f(int x) {\n"
+              "    char *p;\n"
+              "    if (x && (p = new char[10])) { }"
+              "}", true);
+        ASSERT_EQUALS("[test.cpp:3]: (error) Memory leak: p\n", errout.str());
+    }
+
     void deallocuse1() {
         check("void f(char *p) {\n"
               "    free(p);\n"
@@ -258,13 +312,13 @@ private:
               "    free(p);\n"
               "    strcpy(a, p);\n"
               "}");
-        TODO_ASSERT_EQUALS("error", "", errout.str());
+        TODO_ASSERT_EQUALS("error (free,use)", "[test.c:3]: (information) --check-library: Function strcpy() should have <noreturn> configuration\n", errout.str());
 
         check("void f(char *p) {\n"   // #3041 - assigning pointer when it's used
               "    free(p);\n"
               "    strcpy(a, p=b());\n"
               "}");
-        ASSERT_EQUALS("", errout.str());
+        TODO_ASSERT_EQUALS("", "[test.c:3]: (information) --check-library: Function strcpy() should have <noreturn> configuration\n", errout.str());
     }
 
     void deallocuse3() {
@@ -281,6 +335,24 @@ private:
               "    return p;\n"
               "}");
         ASSERT_EQUALS("[test.c:3]: (error) Returning/dereferencing 'p' after it is deallocated / released\n", errout.str());
+
+        check("void f(char *p) {\n"
+              "  if (!p) free(p);\n"
+              "  return p;\n"
+              "}");
+        ASSERT_EQUALS("", errout.str());
+
+        check("void f(char *p) {\n"
+              "  if (!p) delete p;\n"
+              "  return p;\n"
+              "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check("void f(char *p) {\n"
+              "  if (!p) delete [] p;\n"
+              "  return p;\n"
+              "}", true);
+        ASSERT_EQUALS("", errout.str());
     }
 
     void deallocuse5() {  // #4018
@@ -299,6 +371,50 @@ private:
         ASSERT_EQUALS("", errout.str());
     }
 
+    void deallocuse7() {  // #6467, #6469, #6473, #6648
+        check("struct Foo { int* ptr; };\n"
+              "void f(Foo* foo) {\n"
+              "    delete foo->ptr;\n"
+              "    foo->ptr = new Foo; \n"
+              "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check("struct Foo { int* ptr; };\n"
+              "void f(Foo* foo) {\n"
+              "    delete foo->ptr;\n"
+              "    x = *foo->ptr; \n"
+              "}", true);
+        ASSERT_EQUALS("[test.cpp:4]: (error) Dereferencing 'ptr' after it is deallocated / released\n", errout.str());
+
+        check("void parse() {\n"
+              "    struct Buf {\n"
+              "        Buf(uint32_t len) : m_buf(new uint8_t[len]) {}\n"
+              "        ~Buf() { delete[]m_buf; }\n"
+              "        uint8_t *m_buf;\n"
+              "    };\n"
+              "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check("struct Foo {\n"
+              "    Foo();\n"
+              "    Foo* ptr;\n"
+              "    void func();\n"
+              "};\n"
+              "void bar(Foo* foo) {\n"
+              "    delete foo->ptr;\n"
+              "    foo->ptr = new Foo;\n"
+              "    foo->ptr->func();\n"
+              "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check("void foo(void (*conv)(char**)) {\n"
+              "  char * ptr=(char*)malloc(42);\n"
+              "  free(ptr);\n"
+              "  (*conv)(&ptr);\n"
+              "}");
+        ASSERT_EQUALS("", errout.str());
+    }
+
     void doublefree1() {  // #3895
         check("void f(char *p) {\n"
               "    if (x)\n"
@@ -308,6 +424,405 @@ private:
               "    free(p);\n"
               "}");
         ASSERT_EQUALS("[test.c:6]: (error) Memory pointed to by 'p' is freed twice.\n", errout.str());
+
+        check(
+            "void foo(char *p) {\n"
+            "  free(p);\n"
+            "  free(p);\n"
+            "}");
+        ASSERT_EQUALS("[test.c:3]: (error) Memory pointed to by 'p' is freed twice.\n", errout.str());
+
+        check(
+            "void foo(char *p, char *r) {\n"
+            "  free(p);\n"
+            "  free(r);\n"
+            "}");
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void foo() {\n"
+            "  free(p);\n"
+            "  free(r);\n"
+            "}");
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void foo(char *p) {\n"
+            "  if (x < 3) free(p);\n"
+            "  else { if (x > 9) free(p); }\n"
+            "}");
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void foo(char *p) {\n"
+            "  free(p);\n"
+            "  getNext(&p);\n"
+            "  free(p);\n"
+            "}");
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void foo(char *p) {\n"
+            "  free(p);\n"
+            "  bar();\n"
+            "  free(p);\n"
+            "}");
+        ASSERT_EQUALS("[test.c:4]: (error) Memory pointed to by 'p' is freed twice.\n", errout.str());
+
+        check(
+            "void foo(char *p) {\n"
+            "  free(p);\n"
+            "  printf(\"Freed memory at location %x\", p);\n"
+            "  free(p);\n"
+            "}");
+        ASSERT_EQUALS("[test.c:4]: (error) Memory pointed to by 'p' is freed twice.\n", errout.str());
+
+        check(
+            "void foo(FILE *p) {\n"
+            "  fclose(p);\n"
+            "  fclose(p);\n"
+            "}");
+        ASSERT_EQUALS("[test.c:3]: (error) Resource handle 'p' freed twice.\n", errout.str());
+
+        check(
+            "void foo(FILE *p, FILE *r) {\n"
+            "  fclose(p);\n"
+            "  fclose(r);\n"
+            "}");
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void foo(FILE *p) {\n"
+            "  if (x < 3) fclose(p);\n"
+            "  else { if (x > 9) fclose(p); }\n"
+            "}");
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void foo(FILE *p) {\n"
+            "  fclose(p);\n"
+            "  gethandle(&p);\n"
+            "  fclose(p);\n"
+            "}");
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void foo(FILE *p) {\n"
+            "  fclose(p);\n"
+            "  gethandle();\n"
+            "  fclose(p);\n"
+            "}");
+        ASSERT_EQUALS("[test.c:4]: (error) Resource handle 'p' freed twice.\n", errout.str());
+
+        check(
+            "void foo(Data* p) {\n"
+            "  free(p->a);\n"
+            "  free(p->b);\n"
+            "}");
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void f() {\n"
+            "    char *p; p = malloc(100);\n"
+            "    if (x) {\n"
+            "        free(p);\n"
+            "        exit();\n"
+            "    }\n"
+            "    free(p);\n"
+            "}");
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void f() {\n"
+            "    char *p; p = malloc(100);\n"
+            "    if (x) {\n"
+            "        free(p);\n"
+            "        x = 0;\n"
+            "    }\n"
+            "    free(p);\n"
+            "}");
+        ASSERT_EQUALS("[test.c:7]: (error) Memory pointed to by 'p' is freed twice.\n", errout.str());
+
+        check(
+            "void f() {\n"
+            "    char *p; p = do_something();\n"
+            "    free(p);\n"
+            "    p = do_something();\n"
+            "    free(p);\n"
+            "}");
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void foo(char *p) {\n"
+            "  delete p;\n"
+            "  delete p;\n"
+            "}", true);
+        ASSERT_EQUALS("[test.cpp:3]: (error) Memory pointed to by 'p' is freed twice.\n", errout.str());
+
+        check(
+            "void foo(char *p, char *r) {\n"
+            "  delete p;\n"
+            "  delete r;\n"
+            "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void foo(P p) {\n"
+            "  delete p.x;\n"
+            "  delete p;\n"
+            "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void foo(char **p) {\n"
+            "  delete p[0];\n"
+            "  delete p[1];\n"
+            "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void foo(char *p) {\n"
+            "  delete p;\n"
+            "  getNext(&p);\n"
+            "  delete p;\n"
+            "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void foo(char *p) {\n"
+            "  delete p;\n"
+            "  bar();\n"
+            "  delete p;\n"
+            "}", true);
+        ASSERT_EQUALS("[test.cpp:4]: (error) Memory pointed to by 'p' is freed twice.\n", errout.str());
+
+        check(
+            "void foo(char *p) {\n"
+            "  delete[] p;\n"
+            "  delete[] p;\n"
+            "}", true);
+        ASSERT_EQUALS("[test.cpp:3]: (error) Memory pointed to by 'p' is freed twice.\n", errout.str());
+
+        check(
+            "void foo(char *p, char *r) {\n"
+            "  delete[] p;\n"
+            "  delete[] r;\n"
+            "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void foo(char *p) {\n"
+            "  delete[] p;\n"
+            "  getNext(&p);\n"
+            "  delete[] p;\n"
+            "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void foo(char *p) {\n"
+            "  delete[] p;\n"
+            "  bar();\n"
+            "  delete[] p;\n"
+            "}", true);
+        ASSERT_EQUALS("[test.cpp:4]: (error) Memory pointed to by 'p' is freed twice.\n", errout.str());
+
+        check(
+            "LineMarker::~LineMarker() {\n"
+            "  delete pxpm;\n"
+            "}\n"
+            "LineMarker &LineMarker::operator=(const LineMarker &) {\n"
+            "  delete pxpm;\n"
+            "  pxpm = NULL;\n"
+            "  return *this;\n"
+            "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void foo()\n"
+            "{\n"
+            "  int* ptr; ptr = NULL;\n"
+            "  try\n"
+            "    {\n"
+            "      ptr = new int(4);\n"
+            "    }\n"
+            "  catch(...)\n"
+            "    {\n"
+            "      delete ptr;\n"
+            "      throw;\n"
+            "    }\n"
+            "  delete ptr;\n"
+            "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "int foo()\n"
+            "{\n"
+            "   int* a; a = new int;\n"
+            "   bool doDelete; doDelete = true;\n"
+            "   if (a != 0)\n"
+            "   {\n"
+            "       doDelete = false;\n"
+            "       delete a;\n"
+            "   }\n"
+            "   if(doDelete)\n"
+            "       delete a;\n"
+            "   return 0;\n"
+            "}", true);
+        TODO_ASSERT_EQUALS("", "[test.cpp:11]: (error) Memory pointed to by 'a' is freed twice.\n", errout.str());
+
+        check(
+            "void foo(int y)\n"
+            "{\n"
+            "    char * x; x = NULL;\n"
+            "    while(true) {\n"
+            "        x = new char[100];\n"
+            "        if (y++ > 100)\n"
+            "            break;\n"
+            "        delete[] x;\n"
+            "    }\n"
+            "    delete[] x;\n"
+            "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void foo(int y)\n"
+            "{\n"
+            "    char * x; x = NULL;\n"
+            "    for (int i = 0; i < 10000; i++) {\n"
+            "        x = new char[100];\n"
+            "        delete[] x;\n"
+            "    }\n"
+            "    delete[] x;\n"
+            "}", true);
+        TODO_ASSERT_EQUALS("[test.cpp:8]: (error) Memory pointed to by 'x' is freed twice.\n", "", errout.str());
+
+        check(
+            "void foo(int y)\n"
+            "{\n"
+            "    char * x; x = NULL;\n"
+            "    while (isRunning()) {\n"
+            "        x = new char[100];\n"
+            "        delete[] x;\n"
+            "    }\n"
+            "    delete[] x;\n"
+            "}", true);
+        TODO_ASSERT_EQUALS("[test.cpp:8]: (error) Memory pointed to by 'x' is freed twice.\n", "", errout.str());
+
+        check(
+            "void foo(int y)\n"
+            "{\n"
+            "    char * x; x = NULL;\n"
+            "    while (isRunning()) {\n"
+            "        x = malloc(100);\n"
+            "        free(x);\n"
+            "    }\n"
+            "    free(x);\n"
+            "}");
+        TODO_ASSERT_EQUALS("[test.c:8]: (error) Memory pointed to by 'x' is freed twice.\n", "", errout.str());
+
+        check(
+            "void foo(int y)\n"
+            "{\n"
+            "    char * x; x = NULL;\n"
+            "    for (;;) {\n"
+            "        x = new char[100];\n"
+            "        if (y++ > 100)\n"
+            "            break;\n"
+            "        delete[] x;\n"
+            "    }\n"
+            "    delete[] x;\n"
+            "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void foo(int y)\n"
+            "{\n"
+            "    char * x; x = NULL;\n"
+            "    do {\n"
+            "        x = new char[100];\n"
+            "        if (y++ > 100)\n"
+            "            break;\n"
+            "        delete[] x;\n"
+            "    } while (true);\n"
+            "    delete[] x;\n"
+            "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void f()\n"
+            "{\n"
+            "    char *p; p = 0;\n"
+            "    if (x < 100) {\n"
+            "        p = malloc(10);\n"
+            "        free(p);\n"
+            "    }\n"
+            "    free(p);\n"
+            "}");
+        ASSERT_EQUALS("[test.c:8]: (error) Memory pointed to by 'p' is freed twice.\n", errout.str());
+
+        check(
+            "void MyFunction()\n"
+            "{\n"
+            "    char* data; data = new char[100];\n"
+            "    try\n"
+            "    {\n"
+            "    }\n"
+            "    catch(err)\n"
+            "    {\n"
+            "        delete[] data;\n"
+            "        MyThrow(err);\n"
+            "    }\n"
+            "    delete[] data;\n"
+            "}\n"
+
+            "void MyThrow(err)\n"
+            "{\n"
+            "    throw(err);\n"
+            "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check(
+            "void MyFunction()\n"
+            "{\n"
+            "    char* data; data = new char[100];\n"
+            "    try\n"
+            "    {\n"
+            "    }\n"
+            "    catch(err)\n"
+            "    {\n"
+            "        delete[] data;\n"
+            "        MyExit(err);\n"
+            "    }\n"
+            "    delete[] data;\n"
+            "}\n"
+
+            "void MyExit(err)\n"
+            "{\n"
+            "    exit(err);\n"
+            "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check( // #6252
+            "struct Wrapper {\n"
+            "    Thing* m_thing;\n"
+            "    Wrapper() : m_thing(0) {\n"
+            "    }\n"
+            "    ~Wrapper() {\n"
+            "        delete m_thing;\n"
+            "    }\n"
+            "    void changeThing() {\n"
+            "        delete m_thing;\n"
+            "        m_thing = new Thing;\n"
+            "    }\n"
+            "};", true);
+        ASSERT_EQUALS("", errout.str());
+
+        // #7401
+        check("void pCodeLabelDestruct(pCode *pc) {\n"
+              "    free(PCL(pc)->label);\n"
+              "    free(pc);\n"
+              "}");
+        ASSERT_EQUALS("", errout.str());
     }
 
     void doublefree2() {  // #3891
@@ -317,6 +832,131 @@ private:
               "    free(p);\n"
               "    return 0;\n"
               "}");
+        ASSERT_EQUALS("", errout.str());
+    }
+
+    void doublefree3() {  // #4914
+        check("void foo() {\n"
+              "   bool done = false;\n"
+              "   do {\n"
+              "       char *bar = malloc(10)\n"
+              "       if(condition()) {\n"
+              "           free(bar);\n"
+              "           continue;\n"
+              "       }\n"
+              "       done = true;\n"
+              "       free(bar)\n"
+              "   } while(!done);\n"
+              "   return;"
+              "}"
+             );
+        ASSERT_EQUALS("", errout.str());
+    }
+
+    void doublefree4() {  // #5451 - exit
+        check("void f(char *p) {\n"
+              "  if (x) {\n"
+              "    free(p);\n"
+              "    exit(1);\n"
+              "  }\n"
+              "  free(p);\n"
+              "}");
+        ASSERT_EQUALS("", errout.str());
+    }
+
+    void doublefree5() {  // #5522
+        check("void f(char *p) {\n"
+              "  free(p);\n"
+              "  x = (q == p);\n"
+              "  free(p);\n"
+              "}");
+        ASSERT_EQUALS("[test.c:4]: (error) Memory pointed to by 'p' is freed twice.\n", errout.str());
+    }
+
+    void doublefree6() { // #7685
+        check("void do_wordexp(FILE *f) {\n"
+              "  free(getword(f));\n"
+              "  fclose(f);\n"
+              "}", /*cpp=*/false);
+        ASSERT_EQUALS("", errout.str());
+    }
+
+    void doublefree7() {
+        check("void f(char *p, int x) {\n"
+              "    free(p);\n"
+              "    if (x && (p = malloc(10)))\n"
+              "        free(p);\n"
+              "}");
+        ASSERT_EQUALS("", errout.str());
+
+        check("void f(char *p, int x) {\n"
+              "    delete[] p;\n"
+              "    if (x && (p = new char[10]))\n"
+              "        delete[] p;\n"
+              "}");
+        ASSERT_EQUALS("", errout.str());
+    }
+
+    void doublefree8() {
+        check("void f() {\n"
+              "    int * i = new int;\n"
+              "    std::unique_ptr<int> x(i);\n"
+              "    delete i;\n"
+              "}\n", true);
+        ASSERT_EQUALS("[test.cpp:4]: (error) Memory pointed to by 'i' is freed twice.\n", errout.str());
+
+        check("void f() {\n"
+              "    int * i = new int;\n"
+              "    delete i;\n"
+              "    std::unique_ptr<int> x(i);\n"
+              "}\n", true);
+        ASSERT_EQUALS("[test.cpp:4]: (error) Memory pointed to by 'i' is freed twice.\n", errout.str());
+
+        check("void f() {\n"
+              "    int * i = new int;\n"
+              "    std::unique_ptr<int> x{i};\n"
+              "    delete i;\n"
+              "}\n", true);
+        ASSERT_EQUALS("[test.cpp:4]: (error) Memory pointed to by 'i' is freed twice.\n", errout.str());
+
+        check("void f() {\n"
+              "    int * i = new int;\n"
+              "    std::shared_ptr<int> x(i);\n"
+              "    delete i;\n"
+              "}\n", true);
+        ASSERT_EQUALS("[test.cpp:4]: (error) Memory pointed to by 'i' is freed twice.\n", errout.str());
+
+        check("void f() {\n"
+              "    int * i = new int;\n"
+              "    std::shared_ptr<int> x{i};\n"
+              "    delete i;\n"
+              "}\n", true);
+        ASSERT_EQUALS("[test.cpp:4]: (error) Memory pointed to by 'i' is freed twice.\n", errout.str());
+
+        // Check for use-after-free FP
+        check("void f() {\n"
+              "    int * i = new int;\n"
+              "    std::shared_ptr<int> x{i};\n"
+              "    *i = 123;\n"
+              "}\n", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check("void f() {\n"
+              "    int * i = new int[1];\n"
+              "    std::unique_ptr<int[]> x(i);\n"
+              "    delete i;\n"
+              "}\n", true);
+        ASSERT_EQUALS("[test.cpp:4]: (error) Memory pointed to by 'i' is freed twice.\n", errout.str());
+    }
+
+    void doublefree9() {
+        check("struct foo {\n"
+              "    int* get(int) { return new int(); }\n"
+              "};\n"
+              "void f(foo* b) {\n"
+              "    std::unique_ptr<int> x(b->get(0));\n"
+              "    std::unique_ptr<int> y(b->get(1));\n"
+              "}\n", true);
         ASSERT_EQUALS("", errout.str());
     }
 
@@ -333,7 +973,40 @@ private:
               "    char *p = malloc(10);\n"
               "    fatal_error();\n"
               "}");
-        ASSERT_EQUALS("[test.c:4]: (information) fatal_error configuration is needed to establish if there is a leak or not\n", errout.str());
+        ASSERT_EQUALS("[test.c:3]: (information) --check-library: Function fatal_error() should have <noreturn> configuration\n"
+                      "[test.c:4]: (information) --check-library: Function fatal_error() should have <use>/<leak-ignore> configuration\n",
+                      errout.str());
+    }
+
+    void exit3() {
+        check("void f() {\n"
+              "  char *p = malloc(100);\n"
+              "  if (x) {\n"
+              "    free(p);\n"
+              "    ::exit(0);\n"
+              "  }"
+              "  free(p);\n"
+              "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check("void f() {\n"
+              "  char *p = malloc(100);\n"
+              "  if (x) {\n"
+              "    free(p);\n"
+              "    std::exit(0);\n"
+              "  }"
+              "  free(p);\n"
+              "}", true);
+        ASSERT_EQUALS("", errout.str());
+    }
+
+    void functioncall1() {
+        check("void f(struct S *p) {\n"
+              "  p->x = malloc(10);\n"
+              "  free(p->x);\n"
+              "  p->x = 0;\n"
+              "}");
+        ASSERT_EQUALS("", errout.str());
     }
 
     void goto1() {
@@ -384,6 +1057,14 @@ private:
               "    char *p = malloc(10);\n"
               "    if (!p) { return; }\n"
               "    free(p);\n"
+              "}");
+        ASSERT_EQUALS("", errout.str());
+
+        check("char * f(size_t size) {"
+              "    void *p = malloc(1);"
+              "    if (!p && size != 0)"
+              "        return NULL;"
+              "    return p;"
               "}");
         ASSERT_EQUALS("", errout.str());
 
@@ -440,6 +1121,35 @@ private:
         ASSERT_EQUALS("[test.c:6]: (error) Memory leak: a\n", errout.str());
     }
 
+    void ifelse7() { // #5576
+        check("void f() {\n"
+              "    int x = malloc(20);\n"
+              "    if (x < 0)\n"  // assume negative value indicates its unallocated
+              "        return;\n"
+              "    free(x);\n"
+              "}");
+        ASSERT_EQUALS("", errout.str());
+    }
+
+    void ifelse8() { // #5747
+        check("void f() {\n"
+              "    int fd = socket(AF_INET, SOCK_PACKET, 0 );\n"
+              "    if (fd == -1)\n"
+              "        return;\n"
+              "}");
+        ASSERT_EQUALS("", errout.str());
+    }
+
+    void ifelse9() { // #5273
+        check("void f() {\n"
+              "    char *p = malloc(100);\n"
+              "    if (dostuff(p==NULL,0))\n"
+              "        return;\n"
+              "    free(p);\n"
+              "}");
+        ASSERT_EQUALS("", errout.str());
+    }
+
     void switch1() {
         check("void f() {\n"
               "    char *p = 0;\n"
@@ -463,12 +1173,142 @@ private:
         ASSERT_EQUALS("", errout.str());
     }
 
-    void mismatch_fopen_free() {
+    void mismatchAllocDealloc() {
         check("void f() {\n"
               "    FILE*f=fopen(fname,a);\n"
               "    free(f);\n"
               "}");
         ASSERT_EQUALS("[test.c:3]: (error) Mismatching allocation and deallocation: f\n", errout.str());
+
+        check("void f() {\n"
+              "    char *cPtr = new char[100];\n"
+              "    delete[] cPtr;\n"
+              "    cPtr = new char[100]('x');\n"
+              "    delete[] cPtr;\n"
+              "    cPtr = new char[100];\n"
+              "    delete cPtr;\n"
+              "}", true);
+        ASSERT_EQUALS("[test.cpp:7]: (error) Mismatching allocation and deallocation: cPtr\n", errout.str());
+
+        check("void f() {\n"
+              "    char *cPtr = new char[100];\n"
+              "    free(cPtr);\n"
+              "}", true);
+        ASSERT_EQUALS("[test.cpp:3]: (error) Mismatching allocation and deallocation: cPtr\n", errout.str());
+
+        check("void f() {\n"
+              "    char *cPtr = new (buf) char[100];\n"
+              "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check("void f() {\n"
+              "    int * i = new int[1];\n"
+              "    std::unique_ptr<int> x(i);\n"
+              "}\n", true);
+        ASSERT_EQUALS("[test.cpp:3]: (error) Mismatching allocation and deallocation: i\n", errout.str());
+
+        check("void f() {\n"
+              "    int * i = new int;\n"
+              "    std::unique_ptr<int[]> x(i);\n"
+              "}\n", true);
+        ASSERT_EQUALS("[test.cpp:3]: (error) Mismatching allocation and deallocation: i\n", errout.str());
+    }
+
+    void smartPointerDeleter() {
+        check("void f() {\n"
+              "    FILE*f=fopen(fname,a);\n"
+              "    std::unique_ptr<FILE> fp{f};\n"
+              "}", true);
+        ASSERT_EQUALS("[test.cpp:3]: (error) Mismatching allocation and deallocation: f\n", errout.str());
+
+        check("void f() {\n"
+              "    FILE*f=fopen(fname,a);\n"
+              "    std::unique_ptr<FILE, decltype(&fclose)> fp{f, &fclose};\n"
+              "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check("void f() {\n"
+              "    FILE*f=fopen(fname,a);\n"
+              "    std::shared_ptr<FILE> fp{f, &fclose};\n"
+              "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check("struct deleter { void operator()(FILE* f) { fclose(f); }};\n"
+              "void f() {\n"
+              "    FILE*f=fopen(fname,a);\n"
+              "    std::unique_ptr<FILE, deleter> fp{f};\n"
+              "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check("int * create();\n"
+              "void destroy(int * x);\n"
+              "void f() {\n"
+              "    int x * = create()\n"
+              "    std::unique_ptr<int, decltype(&destroy)> xp{x, &destroy()};\n"
+              "}\n", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check("int * create();\n"
+              "void destroy(int * x);\n"
+              "void f() {\n"
+              "    int x * = create()\n"
+              "    std::unique_ptr<int, decltype(&destroy)> xp(x, &destroy());\n"
+              "}\n", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check("void f() {\n"
+              "    FILE*f=fopen(fname,a);\n"
+              "    std::shared_ptr<FILE> fp{f, [](FILE* x) { fclose(x); }};\n"
+              "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check("void f() {\n"
+              "    FILE*f=fopen(fname,a);\n"
+              "    std::shared_ptr<FILE> fp{f, +[](FILE* x) { fclose(x); }};\n"
+              "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check("void f() {\n"
+              "    FILE*f=fopen(fname,a);\n"
+              "    std::shared_ptr<FILE> fp{f, [](FILE* x) { free(f); }};\n"
+              "}", true);
+        ASSERT_EQUALS("[test.cpp:3]: (error) Mismatching allocation and deallocation: f\n", errout.str());
+
+        check("void f() {\n"
+              "    FILE*f=fopen(fname,a);\n"
+              "    std::shared_ptr<FILE> fp{f, [](FILE* x) {}};\n"
+              "}", true);
+        ASSERT_EQUALS("[test.cpp:3]: (error) Mismatching allocation and deallocation: f\n", errout.str());
+
+        check("class C;\n"
+              "void f() {\n"
+              "  C* c = new C{};\n"
+              "  std::shared_ptr<C> a{c, [](C*) {}};\n"
+              "}", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check("class C;\n"
+              "void f() {\n"
+              "  C* c = new C{};\n"
+              "  std::shared_ptr<C> a{c, [](C* x) { delete x; }};\n"
+              "}", true);
+        ASSERT_EQUALS("", errout.str());
+    }
+    void smartPointerRelease() {
+        check("void f() {\n"
+              "    int * i = new int;\n"
+              "    std::unique_ptr<int> x(i);\n"
+              "    x.release();\n"
+              "    delete i;\n"
+              "}\n", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check("void f() {\n"
+              "    int * i = new int;\n"
+              "    std::unique_ptr<int> x(i);\n"
+              "    x.release();\n"
+              "}\n", true);
+        ASSERT_EQUALS("[test.cpp:5]: (error) Memory leak: i\n", errout.str());
     }
 
     void return1() {
@@ -503,7 +1343,7 @@ private:
               "        throw 1;\n"
               "    }\n"
               "    free(p);\n"
-              "}");
+              "}", true);
         ASSERT_EQUALS("", errout.str());
 
         check("void f(char *p, int x) {\n"
@@ -512,7 +1352,7 @@ private:
               "        throw 1;\n"
               "    }\n"
               "    delete p;\n"
-              "}");
+              "}", true);
         ASSERT_EQUALS("", errout.str());
 
         check("void f(char *p, int x) {\n"
@@ -521,7 +1361,21 @@ private:
               "        throw 1;\n"
               "    }\n"
               "    delete [] p;\n"
-              "}");
+              "}", true);
+        ASSERT_EQUALS("", errout.str());
+    }
+
+    void return5() { // ticket #6397 - conditional allocation/deallocation and conditional return
+        // avoid false positives
+        check("void f(int *p, int x) {\n"
+              "    if (x != 0) {\n"
+              "        free(p);\n"
+              "    }\n"
+              "    if (x != 0) {\n"
+              "        return;\n"
+              "    }\n"
+              "    *p = 0;\n"
+              "}", true);
         ASSERT_EQUALS("", errout.str());
     }
 
@@ -548,12 +1402,35 @@ private:
         ASSERT_EQUALS("", errout.str());
     }
 
+    void test4() { // 5923 - static pointer
+        check("void f() {\n"
+              "    static char *p;\n"
+              "    if (!p) p = malloc(10);\n"
+              "    if (x) { free(p); p = 0; }\n"
+              "};");
+        ASSERT_EQUALS("", errout.str());
+    }
+
+    void test5() { // unknown type
+        check("void f() { Fred *p = malloc(10); }", true);
+        ASSERT_EQUALS("[test.cpp:1]: (error) Memory leak: p\n", errout.str());
+
+        check("void f() { Fred *p = malloc(10); }", false);
+        ASSERT_EQUALS("[test.c:1]: (error) Memory leak: p\n", errout.str());
+
+        check("void f() { Fred *p = new Fred; }", true);
+        ASSERT_EQUALS("", errout.str());
+
+        check("void f() { Fred fred = malloc(10); }", true);
+        ASSERT_EQUALS("", errout.str());
+    }
+
     void throw1() { // 3987 - Execution reach a 'throw'
         check("void f() {\n"
               "    char *p = malloc(10);\n"
               "    throw 123;\n"
-              "}");
-        TODO_ASSERT_EQUALS("error", "", errout.str());
+              "}", true);
+        ASSERT_EQUALS("[test.cpp:3]: (error) Memory leak: p\n", errout.str());
 
         check("void f() {\n"
               "    char *p;\n"
@@ -562,7 +1439,24 @@ private:
               "        throw 123;\n"
               "    } catch (...) { }\n"
               "    free(p);\n"
-              "}");
+              "}", true);
+        ASSERT_EQUALS("", errout.str());
+    }
+
+    void throw2() { // do not miss ::NS::Except()
+        check("namespace NS {\n"
+              "    class Except {\n"
+              "    };\n"
+              "}\n"
+              "void foo(int i)\n"
+              "{\n"
+              "    int *pi = new int;\n"
+              "    if (i == 42) {\n"
+              "        delete pi;\n"
+              "        throw ::NS::Except();\n"
+              "    }\n"
+              "    delete pi;\n"
+              "}", true);
         ASSERT_EQUALS("", errout.str());
     }
 
@@ -576,7 +1470,9 @@ private:
               "    char *p = malloc(10);\n"
               "    x(p);\n"
               "}");
-        ASSERT_EQUALS("[test.c:4]: (information) x configuration is needed to establish if there is a leak or not\n", errout.str());
+        ASSERT_EQUALS("[test.c:3]: (information) --check-library: Function x() should have <noreturn> configuration\n"
+                      "[test.c:4]: (information) --check-library: Function x() should have <use>/<leak-ignore> configuration\n",
+                      errout.str());
     }
 
     void configuration2() {
@@ -586,7 +1482,9 @@ private:
               "    char *p = malloc(10);\n"
               "    x(&p);\n"
               "}");
-        ASSERT_EQUALS("[test.c:4]: (information) x configuration is needed to establish if there is a leak or not\n", errout.str());
+        ASSERT_EQUALS("[test.c:3]: (information) --check-library: Function x() should have <noreturn> configuration\n"
+                      "[test.c:4]: (information) --check-library: Function x() should have <use>/<leak-ignore> configuration\n",
+                      errout.str());
     }
 
     void configuration3() {
@@ -594,14 +1492,14 @@ private:
               "    char *p = malloc(10);\n"
               "    if (set_data(p)) { }\n"
               "}");
-        ASSERT_EQUALS("[test.c:4]: (information) set_data configuration is needed to establish if there is a leak or not\n", errout.str());
+        ASSERT_EQUALS("[test.c:4]: (information) --check-library: Function set_data() should have <use>/<leak-ignore> configuration\n", errout.str());
 
         check("void f() {\n"
               "    char *p = malloc(10);\n"
               "    if (set_data(p)) { return; }\n"
               "}");
-        ASSERT_EQUALS("[test.c:3]: (information) set_data configuration is needed to establish if there is a leak or not\n"
-                      "[test.c:4]: (information) set_data configuration is needed to establish if there is a leak or not\n"
+        ASSERT_EQUALS("[test.c:3]: (information) --check-library: Function set_data() should have <use>/<leak-ignore> configuration\n"
+                      "[test.c:4]: (information) --check-library: Function set_data() should have <use>/<leak-ignore> configuration\n"
                       , errout.str());
     }
 
@@ -611,7 +1509,7 @@ private:
               "    int ret = set_data(p);\n"
               "    return ret;\n"
               "}");
-        ASSERT_EQUALS("[test.c:4]: (information) set_data configuration is needed to establish if there is a leak or not\n", errout.str());
+        ASSERT_EQUALS("[test.c:4]: (information) --check-library: Function set_data() should have <use>/<leak-ignore> configuration\n", errout.str());
     }
 
     void ptrptr() {
@@ -620,6 +1518,146 @@ private:
               "}");
         ASSERT_EQUALS("[test.c:3]: (error) Memory leak: p\n", errout.str());
     }
+
+    void nestedAllocation() {
+        check("void QueueDSMCCPacket(unsigned char *data, int length) {\n"
+              "    unsigned char *dataCopy = malloc(length * sizeof(unsigned char));\n"
+              "    m_dsmccQueue.enqueue(new DSMCCPacket(dataCopy));\n"
+              "}", true);
+        ASSERT_EQUALS("[test.cpp:4]: (information) --check-library: Function DSMCCPacket() should have <use>/<leak-ignore> configuration\n", errout.str());
+
+        check("void QueueDSMCCPacket(unsigned char *data, int length) {\n"
+              "    unsigned char *dataCopy = malloc(length * sizeof(unsigned char));\n"
+              "    m_dsmccQueue.enqueue(new DSMCCPacket(somethingunrelated));\n"
+              "}", true);
+        ASSERT_EQUALS("[test.cpp:4]: (error) Memory leak: dataCopy\n", errout.str());
+
+        check("void f() {\n"
+              "  char *buf = new char[1000];\n"
+              "  clist.push_back(new (std::nothrow) C(buf));\n"
+              "}", true);
+        ASSERT_EQUALS("[test.cpp:4]: (information) --check-library: Function C() should have <use>/<leak-ignore> configuration\n", errout.str());
+    }
+
+    void testKeywords() {
+        check("int main(int argc, char **argv) {\n"
+              "  double *new = malloc(1*sizeof(double));\n"
+              "  free(new);\n"
+              "  return 0;\n"
+              "}", false);
+        ASSERT_EQUALS("", errout.str());
+    }
+
+    void inlineFunction() {
+        check("int test() {\n"
+              "  char *c;\n"
+              "  int ret() {\n"
+              "        free(c);\n"
+              "        return 0;\n"
+              "    }\n"
+              "    c = malloc(128);\n"
+              "    return ret();\n"
+              "}");
+        ASSERT_EQUALS("", errout.str());
+    }
+
+    // #8262
+    void smartPtrInContainer() {
+        check("std::list< std::shared_ptr<int> > mList;\n"
+              "void test(){\n"
+              "  int *pt = new int(1);\n"
+              "  mList.push_back(std::shared_ptr<int>(pt));\n"
+              "}\n",
+              true
+             );
+        ASSERT_EQUALS("", errout.str());
+    }
+
 };
 
 REGISTER_TEST(TestLeakAutoVar)
+
+
+
+
+
+class TestLeakAutoVarWindows : public TestFixture {
+public:
+    TestLeakAutoVarWindows() : TestFixture("TestLeakAutoVarWindows") {
+    }
+
+private:
+    Settings settings;
+
+    void check(const char code[]) {
+        // Clear the error buffer..
+        errout.str("");
+
+        // Tokenize..
+        Tokenizer tokenizer(&settings, this);
+        std::istringstream istr(code);
+        tokenizer.tokenize(istr, "test.c");
+        tokenizer.simplifyTokenList2();
+
+        // Check for leaks..
+        CheckLeakAutoVar checkLeak;
+        checkLeak.runSimplifiedChecks(&tokenizer, &settings, this);
+    }
+
+    void run() override {
+        LOAD_LIB_2(settings.library, "windows.cfg");
+
+        TEST_CASE(heapDoubleFree);
+    }
+
+    void heapDoubleFree() {
+        check("void f() {"
+              "  HANDLE MyHeap = HeapCreate(0, 0, 0);"
+              "  int *a = HeapAlloc(MyHeap, 0, sizeof(int));"
+              "  int *b = HeapAlloc(MyHeap, 0, sizeof(int));"
+              "  HeapFree(MyHeap, 0, a);"
+              "  HeapFree(MyHeap, 0, b);"
+              "  HeapDestroy(MyHeap);"
+              "}");
+        ASSERT_EQUALS("", errout.str());
+
+        check("void f() {"
+              "  int *a = HeapAlloc(GetProcessHeap(), 0, sizeof(int));"
+              "  int *b = HeapAlloc(GetProcessHeap(), 0, sizeof(int));"
+              "  HeapFree(GetProcessHeap(), 0, a);"
+              "  HeapFree(GetProcessHeap(), 0, b);"
+              "}");
+        ASSERT_EQUALS("", errout.str());
+
+        check("void f() {"
+              "  HANDLE MyHeap = HeapCreate(0, 0, 0);"
+              "  int *a = HeapAlloc(MyHeap, 0, sizeof(int));"
+              "  int *b = HeapAlloc(MyHeap, 0, sizeof(int));"
+              "  HeapFree(MyHeap, 0, a);"
+              "  HeapDestroy(MyHeap);"
+              "}");
+        ASSERT_EQUALS("[test.c:1]: (error) Memory leak: b\n", errout.str());
+
+        check("void f() {"
+              "  HANDLE MyHeap = HeapCreate(0, 0, 0);"
+              "  int *a = HeapAlloc(MyHeap, 0, sizeof(int));"
+              "  int *b = HeapAlloc(MyHeap, 0, sizeof(int));"
+              "  HeapFree(MyHeap, 0, a);"
+              "  HeapFree(MyHeap, 0, b);"
+              "}");
+        TODO_ASSERT_EQUALS("[test.c:1] (error) Resource leak: MyHeap",
+                           "", errout.str());
+
+        check("void f() {"
+              "  HANDLE MyHeap = HeapCreate(0, 0, 0);"
+              "  int *a = HeapAlloc(MyHeap, 0, sizeof(int));"
+              "  int *b = HeapAlloc(MyHeap, 0, sizeof(int));"
+              "  HeapFree(MyHeap, 0, a);"
+              "}");
+        TODO_ASSERT_EQUALS("[test.c:1] (error) Memory leak: MyHeap\n"
+                           "[test.c:1] (error) Memory leak: b",
+                           "[test.c:1]: (error) Memory leak: b\n", errout.str());
+    }
+};
+
+REGISTER_TEST(TestLeakAutoVarWindows)

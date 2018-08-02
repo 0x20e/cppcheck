@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2017 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -68,14 +68,14 @@ int XmlReport::determineVersion(const QString &filename)
             if (reader.name() == ResultElementName) {
                 QXmlStreamAttributes attribs = reader.attributes();
                 if (attribs.hasAttribute(QString(VersionAttribute))) {
-                    int ver = attribs.value("", VersionAttribute).toString().toInt();
+                    int ver = attribs.value(QString(), VersionAttribute).toString().toInt();
                     return ver;
                 } else
                     return 1;
             }
             break;
 
-            // Not handled
+        // Not handled
         case QXmlStreamReader::EndElement:
         case QXmlStreamReader::NoToken:
         case QXmlStreamReader::Invalid:

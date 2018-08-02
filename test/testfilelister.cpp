@@ -1,6 +1,6 @@
 /*
  * Cppcheck - A tool for static C/C++ code analysis
- * Copyright (C) 2007-2013 Daniel Marjamäki and Cppcheck team.
+ * Copyright (C) 2007-2018 Cppcheck team.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,26 +16,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "testsuite.h"
 #include "filelister.h"
+#include "pathmatch.h"
+#include "testsuite.h"
+
+#include <cstddef>
 #include <fstream>
+#include <map>
+#include <string>
+#include <utility>
 
 #ifndef _WIN32
 #include <vector>
-#include <limits.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
 #endif
 
 class TestFileLister: public TestFixture {
 public:
     TestFileLister()
-        :TestFixture("TestFileLister")
-    {}
+        :TestFixture("TestFileLister") {
+    }
 
 private:
-    void run() {
+    void run() override {
         // bail out if the tests are not executed from the base folder
         {
             std::ifstream fin("test/testfilelister.cpp");
@@ -44,9 +46,6 @@ private:
         }
 
         TEST_CASE(isDirectory);
-#ifndef _WIN32
-        TEST_CASE(absolutePath);
-#endif
         TEST_CASE(recursiveAddFiles);
     }
 
@@ -55,27 +54,12 @@ private:
         ASSERT_EQUALS(true, FileLister::isDirectory("lib"));
     }
 
-#ifndef _WIN32
-    void absolutePath() const {
-        std::vector<char> current_dir;
-#ifdef PATH_MAX
-        current_dir.resize(PATH_MAX);
-#else
-        current_dir.resize(1024);
-#endif
-        while (getcwd(&current_dir[0], current_dir.size()) == NULL && errno == ERANGE) {
-            current_dir.resize(current_dir.size() + 1024);
-        }
-
-        std::string absolute_path = FileLister::getAbsolutePath(".");
-        ASSERT_EQUALS(&current_dir[0], absolute_path);
-    }
-#endif
-
     void recursiveAddFiles() const {
         // Recursively add add files..
         std::map<std::string, std::size_t> files;
-        FileLister::recursiveAddFiles(files, ".");
+        std::vector<std::string> masks;
+        PathMatch matcher(masks);
+        FileLister::recursiveAddFiles(files, ".", matcher);
 
         // In case there are leading "./"..
         for (std::map<std::string, std::size_t>::iterator i = files.begin(); i != files.end();) {
